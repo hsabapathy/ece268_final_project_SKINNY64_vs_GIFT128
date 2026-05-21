@@ -128,11 +128,14 @@ void round_tweakey_schedule(int rounds, uint8_t TK1[][16], uint8_t TK2[][16], ui
             TKp2[r - 1][i] = TK2[r - 1][Q[i]];
         }
 
-        printf("After Permutation TK1: ");
-        print_state(TKp1[r-1]);
+        if (r == rounds - 1)
+        {
+            printf("After Permutation TK1: ");
+            print_state(TKp1[r-1]);
 
-        printf("After Permuatation TK2: ");
-        print_state(TKp2[r -1]);
+            printf("After Permuatation TK2: ");
+            print_state(TKp2[r -1]);
+        }
         
         // Apply LFSR to TK2
         for (int i = 0; i < 16; i++)
@@ -147,18 +150,25 @@ void round_tweakey_schedule(int rounds, uint8_t TK1[][16], uint8_t TK2[][16], ui
             {
                 TK2[r][i] = TKp2[r - 1][i];
             }
+        }
+        
+        if (r == rounds - 1)
+        {
             printf("After LFSR TK2: ");
             print_state(TK2[r]);
 
             printf("Updated TK1 :");
             print_state(TK1[r]);
-            
         }
+        
         for (int i = 0; i < 8; i++)
             round_tweakey[r][i] = (TK1[r][i] ^ TK2[r][i]);
 
-        printf("Round Tweakey RTK :");
-        print_state(round_tweakey[r]);
+        if (r == rounds - 1)
+        {
+            printf("Round Tweakey RTK :");
+            print_state(round_tweakey[r]);
+        }
     }
 }
 
@@ -178,24 +188,33 @@ void encryption(int R, uint8_t plain_text[16], uint8_t cipher_text[16], uint8_t 
             {
                 cipher_text[i] = S[cipher_text[i]];
             }
-        printf(" After SBox: ");
-        print_state(cipher_text);
+        
+        if (r == 0 || r == R - 1)
+        {
+            printf("Round %d - After SBox: ", r);
+            print_state(cipher_text);
+        }
 
         //Adding round constants
         cipher_text[0] ^= (Round_Constant[r] & 0xf);
         cipher_text[4] ^= ((Round_Constant[r] >> 4) & 0x3);
         cipher_text[8] ^= 0x2;
 
-        printf("After adding constants: ");
-        print_state(cipher_text);
+        if (r == 0 || r == R - 1)
+        {
+            printf("Round %d - After adding constants: ", r);
+            print_state(cipher_text);
+        }
 
         //Adding round tweaky
         for (uint8_t i = 0; i < 8; i++)
             cipher_text[i] ^= TK[r][i];
 
-        printf("After Round Tweaky: ");
-        print_state(cipher_text);
-        
+        if (r == 0 || r == R - 1)
+        {
+            printf("Round %d - After Round Tweaky: ", r);
+            print_state(cipher_text);
+        }
         
         uint8_t temp[16];
         for (uint8_t i = 0; i < 16; i++)
@@ -207,13 +226,19 @@ void encryption(int R, uint8_t plain_text[16], uint8_t cipher_text[16], uint8_t 
             cipher_text[i] = temp[P[i]];
             }
         
-        printf("After permutation: ");
-        print_state(cipher_text);
+        if (r == 0 || r == R - 1)
+        {
+            printf("Round %d - After permutation: ", r);
+            print_state(cipher_text);
+        }
         
         mix_columns(cipher_text);
 
-        printf("After mix_columns: ");
-        print_state(cipher_text);
+        if (r == 0 || r == R - 1)
+        {
+            printf("Round %d - After mix_columns: ", r);
+            print_state(cipher_text);
+        }
     }
     printf("Final Ciphertext:");
     print_state(cipher_text);
@@ -237,8 +262,12 @@ void decryption(int R, uint8_t plain_text[16], uint8_t cipher_text[16], uint8_t 
     {
         // Inverse Mix Columns
         inverse_mix_columns(plain_text);
-        printf("After perfomring inverse mix columns: ");
-        print_state(plain_text);
+        
+        if (r == 0 || r == R - 1)
+        {
+            printf("Round %d - After inverse mix columns: ", r);
+            print_state(plain_text);
+        }
         
         for (uint8_t i = 0; i < 16; i++)
             temp[i] = plain_text[i];
@@ -247,31 +276,43 @@ void decryption(int R, uint8_t plain_text[16], uint8_t cipher_text[16], uint8_t 
         for (uint8_t i = 0; i < 16; i++)
             plain_text[i] = temp[P_inverse[i]];
 
-        printf("After performing inverse permuatation :");
-        print_state(plain_text);
+        if (r == 0 || r == R - 1)
+        {
+            printf("Round %d - After inverse permuatation: ", r);
+            print_state(plain_text);
+        }
         
         index = R - r - 1;
         //Removing Tweakey
         for (uint8_t i = 0; i < 8; i++)
             plain_text[i] ^= TK[index][i];
 
-        printf("After Tweaky XOR :");
-        print_state(plain_text);
+        if (r == 0 || r == R - 1)
+        {
+            printf("Round %d - After Tweaky XOR: ", r);
+            print_state(plain_text);
+        }
         
         // Removing the constants
         plain_text[0] ^= (Round_Constant[index] & 0xf);
         plain_text[4] ^= ((Round_Constant[index] >> 4) & 0x3);
         plain_text[8] ^= 0x2;
 
-        printf("After removal of constants: ");
-        print_state(plain_text);
+        if (r == 0 || r == R - 1)
+        {
+            printf("Round %d - After removal of constants: ", r);
+            print_state(plain_text);
+        }
         
         // Inverse S-Box
         for (uint8_t i = 0; i < 16; i++)
             plain_text[i] = S_inverse[plain_text[i]];
 
-        printf("After performing inverse S-Box :");
-        print_state(plain_text);
+        if (r == 0 || r == R - 1)
+        {
+            printf("Round %d - After inverse S-Box: ", r);
+            print_state(plain_text);
+        }
     
     }
     printf("Final recovered Plain_text :");
