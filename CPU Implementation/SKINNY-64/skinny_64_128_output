@@ -1,0 +1,23 @@
+--------SKINNY-64-128 Implementation--------
+--------CTR and CBC Mode Tests--------
+Generating tweakey schedule
+Tweakey schedule generated
+
+--------CTR Mode--------
+
+Original Plaintext   : cf16cfe8fd0f98aa
+CTR Ciphertext       : fcd508919f0d1a77
+Recovered Plaintext  : cf16cfe8fd0f98aa
+
+The recovered plaintext matches the original plaintext 
+CTR mode is validated
+
+--------CBC Mode--------
+
+Original Plaintext   : cf16cfe8fd0f98aa
+CBC Ciphertext       : 6ceda1f43de92b9e
+Recovered Plaintext  : cf16cfe8fd0f98aa
+
+The recovered plaintext matches the original plaintext 
+CBC mode is validated 
+--------All tests have completed--------
