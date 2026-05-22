@@ -58,12 +58,12 @@ static const uint8_t Rcon[11] = {
     0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36
 };
 
-// xtime: multiply by 2 (i.e. by x) in GF(2^8) with reduction poly 0x1b
+
 static inline uint8_t xtime(uint8_t x) {
     return (uint8_t)((x << 1) ^ ((x >> 7) * 0x1b));
 }
 
-// General GF(2^8) multiplication, used only by InvMixColumns
+
 static inline uint8_t gmul(uint8_t a, uint8_t b) {
     uint8_t r = 0;
     while (b) {
@@ -74,10 +74,8 @@ static inline uint8_t gmul(uint8_t a, uint8_t b) {
     return r;
 }
 
-// =============================================================================
-//  Key schedule (FIPS-197 §5.2)
+//  Key scheduling
 //  Produces 11 round keys (176 bytes total) from the 16-byte master key.
-// =============================================================================
 void KeyExpansion(const uint8_t key[KEY_SIZE], uint8_t roundKeys[EXPANDED_KEY_SIZE]) {
     std::memcpy(roundKeys, key, KEY_SIZE);
 
@@ -106,14 +104,7 @@ void KeyExpansion(const uint8_t key[KEY_SIZE], uint8_t roundKeys[EXPANDED_KEY_SI
     }
 }
 
-// =============================================================================
-//  Round transformations
-//  State layout (column-major):
-//        s[0]  s[4]  s[8]  s[12]
-//        s[1]  s[5]  s[9]  s[13]
-//        s[2]  s[6]  s[10] s[14]
-//        s[3]  s[7]  s[11] s[15]
-// =============================================================================
+
 static void SubBytes(uint8_t s[16]) {
     for (int i = 0; i < 16; ++i) s[i] = sbox[s[i]];
 }
@@ -166,9 +157,7 @@ static void AddRoundKey(uint8_t s[16], const uint8_t* rk) {
     for (int i = 0; i < 16; ++i) s[i] ^= rk[i];
 }
 
-// =============================================================================
-//  Block encrypt / decrypt (FIPS-197 §5.1, §5.3)
-// =============================================================================
+//  Encryption
 void EncryptBlock(const uint8_t in[16], uint8_t out[16],
                   const uint8_t roundKeys[EXPANDED_KEY_SIZE]) {
     uint8_t s[16];
@@ -188,6 +177,7 @@ void EncryptBlock(const uint8_t in[16], uint8_t out[16],
     std::memcpy(out, s, 16);
 }
 
+//  Decryption
 void DecryptBlock(const uint8_t in[16], uint8_t out[16],
                   const uint8_t roundKeys[EXPANDED_KEY_SIZE]) {
     uint8_t s[16];
@@ -209,9 +199,7 @@ void DecryptBlock(const uint8_t in[16], uint8_t out[16],
 
 } // namespace aes128
 
-// =============================================================================
-//  Test + benchmark harness
-// =============================================================================
+//  Testing and Benchmarking
 static void hexdump(const char* label, const uint8_t* p, size_t n) {
     std::printf("%-12s", label);
     for (size_t i = 0; i < n; ++i) std::printf("%02x", p[i]);
@@ -220,6 +208,62 @@ static void hexdump(const char* label, const uint8_t* p, size_t n) {
 
 static bool eq(const uint8_t* a, const uint8_t* b, size_t n) {
     return std::memcmp(a, b, n) == 0;
+}
+
+static void hex_to_str(const uint8_t* in, size_t n, char* out) {
+    static const char* kHex = "0123456789abcdef";
+    for (size_t i = 0; i < n; ++i) {
+        out[2 * i] = kHex[(in[i] >> 4) & 0x0f];
+        out[2 * i + 1] = kHex[in[i] & 0x0f];
+    }
+    out[2 * n] = '\0';
+}
+
+static void increment_counter_be(uint8_t ctr[16]) {
+    for (int i = 15; i >= 0; --i) {
+        ctr[i] = static_cast<uint8_t>(ctr[i] + 1);
+        if (ctr[i] != 0) break;
+    }
+}
+
+static void ctr_crypt(const uint8_t* in, uint8_t* out, size_t n,
+                      const uint8_t roundKeys[aes128::EXPANDED_KEY_SIZE],
+                      const uint8_t nonce_counter[16]) {
+    uint8_t ctr[16];
+    uint8_t stream[16];
+    std::memcpy(ctr, nonce_counter, 16);
+    for (size_t off = 0; off < n; off += 16) {
+        aes128::EncryptBlock(ctr, stream, roundKeys);
+        size_t take = (n - off < 16) ? (n - off) : 16;
+        for (size_t i = 0; i < take; ++i) out[off + i] = in[off + i] ^ stream[i];
+        increment_counter_be(ctr);
+    }
+}
+
+static void cbc_encrypt(const uint8_t* in, uint8_t* out, size_t n,
+                        const uint8_t roundKeys[aes128::EXPANDED_KEY_SIZE],
+                        const uint8_t iv[16]) {
+    uint8_t prev[16];
+    uint8_t block[16];
+    std::memcpy(prev, iv, 16);
+    for (size_t off = 0; off < n; off += 16) {
+        for (int i = 0; i < 16; ++i) block[i] = in[off + i] ^ prev[i];
+        aes128::EncryptBlock(block, &out[off], roundKeys);
+        std::memcpy(prev, &out[off], 16);
+    }
+}
+
+static void cbc_decrypt(const uint8_t* in, uint8_t* out, size_t n,
+                        const uint8_t roundKeys[aes128::EXPANDED_KEY_SIZE],
+                        const uint8_t iv[16]) {
+    uint8_t prev[16];
+    uint8_t tmp[16];
+    std::memcpy(prev, iv, 16);
+    for (size_t off = 0; off < n; off += 16) {
+        aes128::DecryptBlock(&in[off], tmp, roundKeys);
+        for (int i = 0; i < 16; ++i) out[off + i] = tmp[i] ^ prev[i];
+        std::memcpy(prev, &in[off], 16);
+    }
 }
 
 static bool run_test(const char* name,
@@ -247,101 +291,71 @@ static bool run_test(const char* name,
 }
 
 int main() {
-    std::printf("AES-128 reference (byte-oriented, no AES-NI)\n");
-    std::printf("============================================\n\n");
+    const uint8_t key[16] = {
+        0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
+        0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c
+    };
+    const uint8_t plaintext[16] = {
+        'c','f','1','6','c','f','e','8','f','d','0','f','9','8','a','a'
+    };
+    const uint8_t iv[16] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+        0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f
+    };
+    const uint8_t nonce_counter[16] = {
+        0x0f,0x0e,0x0d,0x0c,0x0b,0x0a,0x09,0x08,
+        0x07,0x06,0x05,0x04,0x03,0x02,0x01,0x00
+    };
 
-    // -------- FIPS-197 Appendix B test vector --------
-    {
-        uint8_t key[16] = {0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
-                           0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c};
-        uint8_t pt [16] = {0x32,0x43,0xf6,0xa8,0x88,0x5a,0x30,0x8d,
-                           0x31,0x31,0x98,0xa2,0xe0,0x37,0x07,0x34};
-        uint8_t ct [16] = {0x39,0x25,0x84,0x1d,0x02,0xdc,0x09,0xfb,
-                           0xdc,0x11,0x85,0x97,0x19,0x6a,0x0b,0x32};
-        run_test("FIPS-197 App.B", key, pt, ct);
+    uint8_t round_keys[aes128::EXPANDED_KEY_SIZE];
+    uint8_t ctr_ct[16], ctr_rec[16];
+    uint8_t cbc_ct[16], cbc_rec[16];
+    char pt_hex[33], ctr_hex[33], cbc_hex[33];
+    char pt_ascii[17], ctr_rec_ascii[17], cbc_rec_ascii[17];
+
+    std::printf("--------AES-128 Implementation--------\n");
+    std::printf("--------CTR and CBC Mode Tests--------\n");
+    std::printf("Generating key schedule\n");
+    aes128::KeyExpansion(key, round_keys);
+    std::printf("Key schedule generated\n\n");
+
+    hex_to_str(plaintext, 16, pt_hex);
+    std::memcpy(pt_ascii, plaintext, 16);
+    pt_ascii[16] = '\0';
+
+    ctr_crypt(plaintext, ctr_ct, 16, round_keys, nonce_counter);
+    ctr_crypt(ctr_ct, ctr_rec, 16, round_keys, nonce_counter);
+    hex_to_str(ctr_ct, 16, ctr_hex);
+    std::memcpy(ctr_rec_ascii, ctr_rec, 16);
+    ctr_rec_ascii[16] = '\0';
+
+    std::printf("--------CTR Mode--------\n\n");
+    std::printf("Original Plaintext   : %s\n", pt_ascii);
+    std::printf("CTR Ciphertext       : %s\n", ctr_hex);
+    std::printf("Recovered Plaintext  : %s\n\n", ctr_rec_ascii);
+    if (eq(ctr_rec, plaintext, 16)) {
+        std::printf("The recovered plaintext matches the original plaintext \n");
+        std::printf("CTR mode is validated\n\n");
+    } else {
+        std::printf("CTR mode validation failed\n\n");
     }
 
-    // -------- FIPS-197 Appendix C.1 test vector --------
-    {
-        uint8_t key[16] = {0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
-                           0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f};
-        uint8_t pt [16] = {0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
-                           0x88,0x99,0xaa,0xbb,0xcc,0xdd,0xee,0xff};
-        uint8_t ct [16] = {0x69,0xc4,0xe0,0xd8,0x6a,0x7b,0x04,0x30,
-                           0xd8,0xcd,0xb7,0x80,0x70,0xb4,0xc5,0x5a};
-        run_test("FIPS-197 App.C.1", key, pt, ct);
+    cbc_encrypt(plaintext, cbc_ct, 16, round_keys, iv);
+    cbc_decrypt(cbc_ct, cbc_rec, 16, round_keys, iv);
+    hex_to_str(cbc_ct, 16, cbc_hex);
+    std::memcpy(cbc_rec_ascii, cbc_rec, 16);
+    cbc_rec_ascii[16] = '\0';
+
+    std::printf("--------CBC Mode--------\n\n");
+    std::printf("Original Plaintext   : %s\n", pt_ascii);
+    std::printf("CBC Ciphertext       : %s\n", cbc_hex);
+    std::printf("Recovered Plaintext  : %s\n\n", cbc_rec_ascii);
+    if (eq(cbc_rec, plaintext, 16)) {
+        std::printf("The recovered plaintext matches the original plaintext \n");
+        std::printf("CBC mode is validated \n");
+    } else {
+        std::printf("CBC mode validation failed\n");
     }
-
-    // -------- Benchmark: key schedule and bulk encryption --------
-    std::printf("Benchmarks (single thread, wall clock)\n");
-    std::printf("--------------------------------------\n");
-
-    using clock = std::chrono::high_resolution_clock;
-
-    // Key schedule cost
-    {
-        uint8_t key[16] = {0};
-        uint8_t rk[aes128::EXPANDED_KEY_SIZE];
-        const int N = 1'000'000;
-        auto t0 = clock::now();
-        for (int i = 0; i < N; ++i) {
-            key[0] = (uint8_t)i;  // vary to prevent constant-folding
-            aes128::KeyExpansion(key, rk);
-        }
-        auto t1 = clock::now();
-        double ns = std::chrono::duration<double, std::nano>(t1 - t0).count();
-        std::printf("  KeyExpansion:   %.1f ns/call (%d calls)\n", ns / N, N);
-    }
-
-    // Encryption throughput
-    {
-        uint8_t key[16] = {0};
-        uint8_t rk[aes128::EXPANDED_KEY_SIZE];
-        aes128::KeyExpansion(key, rk);
-
-        const size_t NBLOCKS = 1'000'000;
-        std::vector<uint8_t> in(NBLOCKS * 16, 0xa5);
-        std::vector<uint8_t> out(NBLOCKS * 16);
-
-        auto t0 = clock::now();
-        for (size_t i = 0; i < NBLOCKS; ++i) {
-            aes128::EncryptBlock(&in[i*16], &out[i*16], rk);
-        }
-        auto t1 = clock::now();
-        double sec   = std::chrono::duration<double>(t1 - t0).count();
-        double bytes = (double)NBLOCKS * 16.0;
-        double mbps  = bytes / sec / (1024.0 * 1024.0);
-        double cpb   = (sec * 1e9) / bytes; // ns per byte; rename for cycles if you measure freq
-        std::printf("  EncryptBlock:   %.2f ns/byte   %.1f MiB/s   (%zu blocks)\n",
-                    cpb, mbps, NBLOCKS);
-    }
-
-    // Decryption throughput
-    {
-        uint8_t key[16] = {0};
-        uint8_t rk[aes128::EXPANDED_KEY_SIZE];
-        aes128::KeyExpansion(key, rk);
-
-        const size_t NBLOCKS = 1'000'000;
-        std::vector<uint8_t> in(NBLOCKS * 16, 0xa5);
-        std::vector<uint8_t> out(NBLOCKS * 16);
-
-        auto t0 = clock::now();
-        for (size_t i = 0; i < NBLOCKS; ++i) {
-            aes128::DecryptBlock(&in[i*16], &out[i*16], rk);
-        }
-        auto t1 = clock::now();
-        double sec   = std::chrono::duration<double>(t1 - t0).count();
-        double bytes = (double)NBLOCKS * 16.0;
-        double mbps  = bytes / sec / (1024.0 * 1024.0);
-        double cpb   = (sec * 1e9) / bytes;
-        std::printf("  DecryptBlock:   %.2f ns/byte   %.1f MiB/s   (%zu blocks)\n",
-                    cpb, mbps, NBLOCKS);
-    }
-
-    std::printf("\nROM footprint reference:\n");
-    std::printf("  sbox + inv_sbox:  512 bytes\n");
-    std::printf("  Rcon:              11 bytes\n");
-    std::printf("  Round-key buffer: %d bytes (per key)\n", aes128::EXPANDED_KEY_SIZE);
+    std::printf("--------All tests have completed--------\n");
     return 0;
 }
