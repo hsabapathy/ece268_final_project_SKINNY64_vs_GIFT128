@@ -357,7 +357,7 @@ static double measure_cycles_per_byte_ctr(int R, uint8_t RTK[][8])
     uint8_t nonce[16] = {0};
     for (int i = 0; i < BUF_BLOCKS * 16; i++) buf[i] = (uint8_t)(i & 0xf);
 
-    // Warm-up
+    
     ctr_encrypt(R, buf, out, BUF_BLOCKS, nonce, RTK);
 
     uint64_t samples[TRIALS];
