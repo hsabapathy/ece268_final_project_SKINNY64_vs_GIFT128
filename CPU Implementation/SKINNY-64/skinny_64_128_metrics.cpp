@@ -373,7 +373,7 @@ static double measure_cycles_per_byte_ctr(int R, uint8_t RTK[][8])
     
     return (double)median_cycles / (BUF_BLOCKS * 8);
 }
-//Finding number of cycles needed to encrypt 1 byte in CTR
+//Finding number of cycles needed to encrypt 1 byte in CBC
 static double measure_cycles_per_byte_cbc(int R, uint8_t RTK[][8])
 {
     static uint8_t buf[BUF_BLOCKS * 16];
