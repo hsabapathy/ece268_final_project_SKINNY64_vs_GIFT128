@@ -1,0 +1,23 @@
+--------AES-128 Implementation--------
+--------CTR and CBC Mode Tests--------
+Generating key schedule
+Key schedule generated
+
+--------CTR Mode--------
+
+Original Plaintext   : cf16cfe8fd0f98aa
+CTR Ciphertext       : 111d4e24d141473be8c6f4020618038c
+Recovered Plaintext  : cf16cfe8fd0f98aa
+
+The recovered plaintext matches the original plaintext 
+CTR mode is validated
+
+--------CBC Mode--------
+
+Original Plaintext   : cf16cfe8fd0f98aa
+CBC Ciphertext       : 97d16b6d3e99a3fb90f5bbef0cda466e
+Recovered Plaintext  : cf16cfe8fd0f98aa
+
+The recovered plaintext matches the original plaintext 
+CBC mode is validated 
+--------All tests have completed--------
