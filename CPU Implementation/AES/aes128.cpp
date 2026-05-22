@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
+#include <cstdarg>
 #include <chrono>
 #include <vector>
 
@@ -210,6 +211,20 @@ static bool eq(const uint8_t* a, const uint8_t* b, size_t n) {
     return std::memcmp(a, b, n) == 0;
 }
 
+static void log_printf(FILE* out, const char* fmt, ...) {
+    va_list args_stdout;
+    va_start(args_stdout, fmt);
+    std::vprintf(fmt, args_stdout);
+    va_end(args_stdout);
+
+    if (out) {
+        va_list args_file;
+        va_start(args_file, fmt);
+        std::vfprintf(out, fmt, args_file);
+        va_end(args_file);
+    }
+}
+
 static void hex_to_str(const uint8_t* in, size_t n, char* out) {
     static const char* kHex = "0123456789abcdef";
     for (size_t i = 0; i < n; ++i) {
@@ -291,6 +306,11 @@ static bool run_test(const char* name,
 }
 
 int main() {
+    FILE* report = std::fopen("aes_output.txt", "w");
+    if (!report) {
+        std::fprintf(stderr, "Warning: could not open aes_output.txt for writing\n");
+    }
+
     const uint8_t key[16] = {
         0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
         0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c
@@ -313,11 +333,11 @@ int main() {
     char pt_hex[33], ctr_hex[33], cbc_hex[33];
     char pt_ascii[17], ctr_rec_ascii[17], cbc_rec_ascii[17];
 
-    std::printf("--------AES-128 Implementation--------\n");
-    std::printf("--------CTR and CBC Mode Tests--------\n");
-    std::printf("Generating key schedule\n");
+    log_printf(report, "--------AES-128 Implementation--------\n");
+    log_printf(report, "--------CTR and CBC Mode Tests--------\n");
+    log_printf(report, "Generating key schedule\n");
     aes128::KeyExpansion(key, round_keys);
-    std::printf("Key schedule generated\n\n");
+    log_printf(report, "Key schedule generated\n\n");
 
     hex_to_str(plaintext, 16, pt_hex);
     std::memcpy(pt_ascii, plaintext, 16);
@@ -329,15 +349,15 @@ int main() {
     std::memcpy(ctr_rec_ascii, ctr_rec, 16);
     ctr_rec_ascii[16] = '\0';
 
-    std::printf("--------CTR Mode--------\n\n");
-    std::printf("Original Plaintext   : %s\n", pt_ascii);
-    std::printf("CTR Ciphertext       : %s\n", ctr_hex);
-    std::printf("Recovered Plaintext  : %s\n\n", ctr_rec_ascii);
+    log_printf(report, "--------CTR Mode--------\n\n");
+    log_printf(report, "Original Plaintext   : %s\n", pt_ascii);
+    log_printf(report, "CTR Ciphertext       : %s\n", ctr_hex);
+    log_printf(report, "Recovered Plaintext  : %s\n\n", ctr_rec_ascii);
     if (eq(ctr_rec, plaintext, 16)) {
-        std::printf("The recovered plaintext matches the original plaintext \n");
-        std::printf("CTR mode is validated\n\n");
+        log_printf(report, "The recovered plaintext matches the original plaintext \n");
+        log_printf(report, "CTR mode is validated\n\n");
     } else {
-        std::printf("CTR mode validation failed\n\n");
+        log_printf(report, "CTR mode validation failed\n\n");
     }
 
     cbc_encrypt(plaintext, cbc_ct, 16, round_keys, iv);
@@ -346,16 +366,18 @@ int main() {
     std::memcpy(cbc_rec_ascii, cbc_rec, 16);
     cbc_rec_ascii[16] = '\0';
 
-    std::printf("--------CBC Mode--------\n\n");
-    std::printf("Original Plaintext   : %s\n", pt_ascii);
-    std::printf("CBC Ciphertext       : %s\n", cbc_hex);
-    std::printf("Recovered Plaintext  : %s\n\n", cbc_rec_ascii);
+    log_printf(report, "--------CBC Mode--------\n\n");
+    log_printf(report, "Original Plaintext   : %s\n", pt_ascii);
+    log_printf(report, "CBC Ciphertext       : %s\n", cbc_hex);
+    log_printf(report, "Recovered Plaintext  : %s\n\n", cbc_rec_ascii);
     if (eq(cbc_rec, plaintext, 16)) {
-        std::printf("The recovered plaintext matches the original plaintext \n");
-        std::printf("CBC mode is validated \n");
+        log_printf(report, "The recovered plaintext matches the original plaintext \n");
+        log_printf(report, "CBC mode is validated \n");
     } else {
-        std::printf("CBC mode validation failed\n");
+        log_printf(report, "CBC mode validation failed\n");
     }
-    std::printf("--------All tests have completed--------\n");
+    log_printf(report, "--------All tests have completed--------\n");
+
+    if (report) std::fclose(report);
     return 0;
 }
