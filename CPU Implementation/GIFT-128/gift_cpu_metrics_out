@@ -1,0 +1,48 @@
+
+ GIFT-128 Core Block Cipher Test
+Encryption->Decryption round-trip: PASS
+
+--------CBC Mode--------
+
+Original Plaintext   : cf16cfe8fd0f98aa0000000000000000
+CBC Ciphertext       : 9e57ac41af6979a3884db9b081c63a1e
+Recovered Plaintext  : cf16cfe8fd0f98aa0000000000000000
+
+CBC mode is validated : PASS
+
+--------CTR Mode--------
+
+Original Plaintext   : cf16cfe8fd0f98aa0000000000000000
+CTR Ciphertext       : 53b75bef157333b271a5493de3808880
+Recovered Plaintext  : cf16cfe8fd0f98aa0000000000000000
+
+CTR mode is validated: PASS
+
+--------All tests have completed--------
+
+--------- Code Size ----------
+  GIFT_S         (4-bit Sbox, 16 entries)              :  16 bytes
+  GIFT_S_inv     (4-bit Sbox inverse, 16 entries)      :  16 bytes
+  GIFT_P         (bit permutation, 128 entries)        : 128 bytes
+  GIFT_P_inv     (inverse permutation, 128 entries)    : 128 bytes
+  GIFT_RC        (round constants, 62 entries)         :  62 bytes
+  Total table footprint                              : 350 bytes
+
+-------- Performance Metrics ---------n Median of 31 trials, buffer = 256 blocks
+  CTR encrypt                              : 14206.26  cycles/byte
+  CBC encrypt (chained)                    : 14232.52  cycles/byte
+
+  CBC overhead vs CTR                    : +26.26 cycles/byte
+
+--------- Key-Schedule Cost ------
+  Rounds             : 40
+  Per-round update   : 1 word rotation (nibble shift) +
+                       2 sub-word rotations (bit-level)
+  Cycles / key setup : 227278  (gift128_encrypt_block, median of 31 trials)
+  Cycles / round     : 5681.9
+  RAM cost           : 0 bytes (keys derived inline, no table stored)
+  Re-use across blocks: NO (key schedule re-run each block for encryption)
+
+  Decryption schedule: PRE-COMPUTED (all 40 round keys derived upfront)
+  RAM cost           : 40 rounds x 32 nibbles = 1280 bytes on stack
+  Re-use across blocks: YES (RTK computed once, reused for all blocks)
