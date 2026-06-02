@@ -1,0 +1,37 @@
+--------SKINNY-64-128 CUDA Implementation--------
+--------CTR and CBC Mode Tests--------
+
+Generating tweakey schedule
+Tweakey schedule generated
+Round tweakey uploaded to GPU constant memory
+
+--------CTR Mode (GPU)--------
+
+Original Plaintext   : cf16cfe8fd0f98aa
+CTR Ciphertext       : fcd508919f0d1a77
+Recovered Plaintext  : cf16cfe8fd0f98aa
+
+The recovered plaintext matches the original plaintext 
+CTR mode is validated
+
+--------CBC Mode (GPU)--------
+
+Original Plaintext   : cf16cfe8fd0f98aa
+CBC Ciphertext       : 6ceda1f43de92b9e
+Recovered Plaintext  : cf16cfe8fd0f98aa
+
+The recovered plaintext matches the original plaintext 
+CBC mode is validated
+
+--------All tests have completed--------
+
+--------GPU Performance Metrics--------
+  Median of 31 trials, Buffer = 256 blocks (2048 nibble-bytes)
+  CTR encrypt (parallel)                   :   0.0584 ms  (~0.035088 GB/s)
+  CBC decrypt (parallel)                   :   0.0522 ms  (~0.039216 GB/s)
+
+--------GPU Device--------
+  Device        : NVIDIA GeForce GTX 1080 Ti
+  SMs           : 28
+  Clock         : 1582 MHz
+  Global memory : 11715 MB
