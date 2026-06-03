@@ -1,0 +1,166 @@
+
+ GIFT-128 Core Block Cipher Test
+Encryption->Decryption round-trip: PASS
+
+--------CBC Mode (CPU)--------
+
+Original Plaintext   : cf16cfe8fd0f98aa0000000000000000
+Recovered Plaintext  : cf16cfe8fd0f98aa0000000000000000
+
+CPU CBC encrypt->decrypt: PASS
+
+--------CTR Mode (CPU)--------
+
+Original Plaintext   : cf16cfe8fd0f98aa0000000000000000
+CPU CTR Ciphertext   : 53b75bef157333b271a5493de3808880
+CPU Recovered Plain  : cf16cfe8fd0f98aa0000000000000000
+
+CPU CTR encrypt->decrypt: PASS
+
+--------CTR Mode (GPU) --------
+
+CPU CTR Ciphertext   : 53b75bef157333b271a5493de3808880
+GPU CTR Ciphertext   : 53b75bef157333b271a5493de3808880
+GPU CTR matches CPU CTR: PASS
+GPU Recovered Plain  : cf16cfe8fd0f98aa0000000000000000
+
+GPU CTR decrypt round-trip : PASS
+
+--------CBC Decrypt (GPU)--------
+
+Ciphertext (CPU enc) : 9e57ac41af6979a3884db9b081c63a1e
+GPU Recovered Plain  : cf16cfe8fd0f98aa0000000000000000
+
+GPU CBC decrypt matches CPU plaintext: PASS
+
+--------All tests have completed--------
+
+-------- Performance Metrics (CPU) ---------
+ Median of 31 trials, buffer = 256 blocks
+  CTR encrypt (CPU)                        : 14503.63  cycles/byte
+  CBC encrypt (CPU, chained)               : 14589.95  cycles/byte
+
+  CBC overhead vs CTR                    : +86.32 cycles/byte
+
+--------- Key-Schedule Cost (CPU) ------
+  Rounds             : 40
+  Per-round update   : 1 word rotation (nibble shift) +
+                       2 sub-word rotations (bit-level)
+  Cycles / key setup : 238665  (gift128_encrypt_block, median of 31 trials)
+  Cycles / round     : 5966.6
+  RAM cost           : 0 bytes (keys derived inline)
+  Re-use across blocks: NO (key schedule re-run each block for encryption)
+
+  CPU Decryption schedule: PRE-COMPUTED (40 round keys derived upfront)
+  RAM cost           : 40 rounds x 32 nibbles = 1280 bytes on stack
+
+--------- Key-Schedule Cost (GPU) ------
+  Round keys pre-computed ONCE on CPU: 40 x 32 = 1280 bytes
+  Uploaded to GPU global memory: 1 cudaMemcpy call
+  Each GPU thread reads pre-computed keys: 0 key-schedule work per thread
+  Saving vs per-thread schedule: ~1280 nibble ops per thread
+  Static Memory Footprint (Metric 4)
+  Table                              CPU (ROM)   GPU (__constant__)
+  ─────────────────────────────────────────────────────────────────
+  GIFT_S        (S-box, 16 entries)   16 bytes    16 bytes
+  GIFT_S_inv    (inv S-box, 16)       16 bytes    16 bytes
+  GIFT_P        (bit perm, 128)      128 bytes   128 bytes
+  GIFT_P_inv    (inv perm, 128)      128 bytes   128 bytes
+  GIFT_RC       (round consts, 62)    62 bytes    62 bytes
+  ─────────────────────────────────────────────────────────────────
+  Total                              350 bytes   350 bytes
+  GIFT-128 total table footprint is 68% of AES-128's tables.
+
+  GPU: all tables live in __constant__ memory (64 KB dedicated
+  read-only cache — zero bank-conflict broadcast to all threads).
+  Key-Schedule Space  
+  GIFT-128 key size                    : 16 bytes
+  Rounds                               : 40
+  Nibbles per round-key state          : 32
+  Expanded key schedule (CPU/GPU)      : 40 rounds × 32 bytes = 1280 bytes
+  CTR encryption                       : 0 bytes (key schedule re-run inline)
+  CBC decryption (CPU)                 : 1280 bytes on stack (round_key_state)
+  CBC decryption (GPU)                 : 1280 bytes in GPU global memory
+  Key-Schedule Timing (Metric 5)
+  CPU: gift128_precompute_round_keys()  median = 21300 cycles
+  CPU: gift128_precompute_round_keys()  wall   = 9594.5 ns/key
+  GPU: cudaMemcpy round-keys H→D        wall   = 5.41 µs/key
+
+  Strategy: key schedule computed ONCE on CPU (1280 bytes),
+  then uploaded to GPU global memory via 1 cudaMemcpy.
+  Each GPU thread reads pre-computed keys — 0 schedule work per thread.
+
+-------- Performance Metrics (CPU) ---------
+ Median of 31 trials, buffer = 256 blocks
+  CTR encrypt (CPU)                        : 14357.69  cycles/byte
+  CBC encrypt (CPU, chained)               : 14306.98  cycles/byte
+
+  CBC overhead vs CTR                    : -50.71 cycles/byte
+
+--------- Key-Schedule Cost (CPU) ------
+  Rounds             : 40
+  Per-round update   : 1 word rotation (nibble shift) +
+                       2 sub-word rotations (bit-level)
+  Cycles / key setup : 222920  (gift128_encrypt_block, median of 31 trials)
+  Cycles / round     : 5573.0
+  RAM cost           : 0 bytes (keys derived inline)
+  Re-use across blocks: NO (key schedule re-run each block for encryption)
+
+  CPU Decryption schedule: PRE-COMPUTED (40 round keys derived upfront)
+  RAM cost           : 40 rounds x 32 nibbles = 1280 bytes on stack
+
+--------- Key-Schedule Cost (GPU) ------
+  Round keys pre-computed ONCE on CPU: 40 x 32 = 1280 bytes
+  Uploaded to GPU global memory: 1 cudaMemcpy call
+  Each GPU thread reads pre-computed keys: 0 key-schedule work per thread
+  Saving vs per-thread schedule: ~1280 nibble ops per thread
+
+
+  GPU Throughput vs Input Size
+
+size_bytes,mode,wall_sec,throughput_GBs
+       1 KB   CTR   wall=  0.1464 ms  throughput=  0.007 GB/s
+       1 KB   CBC-D wall=  0.0808 ms  throughput=  0.013 GB/s
+1024,CTR,0.000146,0.006993
+1024,CBC-D,0.000081,0.012680
+       4 KB   CTR   wall=  0.1711 ms  throughput=  0.024 GB/s
+       4 KB   CBC-D wall=  0.1141 ms  throughput=  0.036 GB/s
+4096,CTR,0.000171,0.023932
+4096,CBC-D,0.000114,0.035903
+      16 KB   CTR   wall=  0.1713 ms  throughput=  0.096 GB/s
+      16 KB   CBC-D wall=  0.1144 ms  throughput=  0.143 GB/s
+16384,CTR,0.000171,0.095652
+16384,CBC-D,0.000114,0.143182
+      64 KB   CTR   wall=  0.2490 ms  throughput=  0.263 GB/s
+      64 KB   CBC-D wall=  0.1884 ms  throughput=  0.348 GB/s
+65536,CTR,0.000249,0.263215
+65536,CBC-D,0.000188,0.347818
+     256 KB   CTR   wall=  0.7083 ms  throughput=  0.370 GB/s
+     256 KB   CBC-D wall=  0.5603 ms  throughput=  0.468 GB/s
+262144,CTR,0.000708,0.370097
+262144,CBC-D,0.000560,0.467904
+       1 MB   CTR   wall=  2.3371 ms  throughput=  0.449 GB/s
+       1 MB   CBC-D wall=  2.0448 ms  throughput=  0.513 GB/s
+1048576,CTR,0.002337,0.448673
+1048576,CBC-D,0.002045,0.512808
+       4 MB   CTR   wall=  8.9563 ms  throughput=  0.468 GB/s
+       4 MB   CBC-D wall=  7.4402 ms  throughput=  0.564 GB/s
+4194304,CTR,0.008956,0.468305
+4194304,CBC-D,0.007440,0.563734
+      16 MB   CTR   wall= 29.3404 ms  throughput=  0.572 GB/s
+      16 MB   CBC-D wall= 25.9180 ms  throughput=  0.647 GB/s
+16777216,CTR,0.029340,0.571814
+16777216,CBC-D,0.025918,0.647319
+      64 MB   CTR   wall=113.1494 ms  throughput=  0.593 GB/s
+      64 MB   CBC-D wall=103.5594 ms  throughput=  0.648 GB/s
+67108864,CTR,0.113149,0.593100
+67108864,CBC-D,0.103559,0.648023
+  Compiled Binary Size 
+  Executable  : ./gift_gpu
+  Size on disk: 890.8 KB (912208 bytes)
+
+  For PTX size, build with:
+    nvcc --ptx -O2 gift128.cu -o gift128.ptx
+    wc -l gift128.ptx       # PTX line count
+    wc -c gift128.ptx       # PTX byte size
+  Then grep for the kernel function names to isolate kernel PTX.
