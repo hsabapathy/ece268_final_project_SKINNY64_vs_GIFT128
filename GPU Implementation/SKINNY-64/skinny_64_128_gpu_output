@@ -2,8 +2,7 @@
 --------CTR and CBC Mode Tests--------
 
 Generating tweakey schedule
-Tweakey schedule generated
-Round tweakey uploaded to GPU constant memory
+Tweakey schedule generated and uploaded to GPU
 
 --------CTR Mode (GPU)--------
 
@@ -11,8 +10,7 @@ Original Plaintext   : cf16cfe8fd0f98aa
 CTR Ciphertext       : fcd508919f0d1a77
 Recovered Plaintext  : cf16cfe8fd0f98aa
 
-The recovered plaintext matches the original plaintext 
-CTR mode is validated
+The recovered plaintext matches the original plaintext CTR mode
 
 --------CBC Mode (GPU)--------
 
@@ -20,18 +18,34 @@ Original Plaintext   : cf16cfe8fd0f98aa
 CBC Ciphertext       : 6ceda1f43de92b9e
 Recovered Plaintext  : cf16cfe8fd0f98aa
 
-The recovered plaintext matches the original plaintext 
-CBC mode is validated
+The recovered plaintext matches the original plaintext CBC mode
 
---------All tests have completed--------
+--------CBC and CTR modes are validated--------
 
---------GPU Performance Metrics--------
+--------GPU Throughput Benchmark--------
   Median of 31 trials, Buffer = 256 blocks (2048 nibble-bytes)
-  CTR encrypt (parallel)                   :   0.0584 ms  (~0.035088 GB/s)
-  CBC decrypt (parallel)                   :   0.0522 ms  (~0.039216 GB/s)
+  CTR encrypt                              :   0.0553 ms  (~0.037037 GB/s)
+  CBC decrypt                              :   0.0532 ms  (~0.038462 GB/s)
+
+--------Single 64-Byte Block Latency--------
+  Input size : 8 cipher blocks = 64 nibble-bytes
+  Trials     : 101  
+
+  CTR encrypt latency                 :    42.85 us
+  CBC decrypt latency                 :    42.02 us
+
+--------Key Schedule Cost--------
+
+  Time (median of 101 trials)
+  CPU compute  (round_tweakey_schedule)            :    2.05 us
+  GPU upload   (cudaMemcpyToSymbol, PCIe)          :    7.17 us
+  Total key setup cost                             :    9.22 us
+
+  Space
+  Expanded RTK in GPU constant memory              : 288 bytes  (36 rounds x 8 nibble-bytes)
 
 --------GPU Device--------
   Device        : NVIDIA GeForce GTX 1080 Ti
   SMs           : 28
   Clock         : 1582 MHz
-  Global memory : 11715 MB
+  Global memory : 11708 MB
