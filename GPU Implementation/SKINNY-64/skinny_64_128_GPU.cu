@@ -368,7 +368,7 @@ static void throughput_sweep(int R, uint8_t nonce[16], uint8_t iv[16])
         int threads = 256;
         int grid    = (int)((num_blocks + threads - 1) / threads);
 
-        // ── GPU CTR encrypt ─────────────────────────────────────────────────
+        
         float ctr_enc_samples[TRIALS];
         for (int t = 0; t < REPS; t++) {
             CUDA_CHECK(cudaEventRecord(ev_s));
@@ -379,7 +379,7 @@ static void throughput_sweep(int R, uint8_t nonce[16], uint8_t iv[16])
             ctr_enc_samples[t] = ms;
         }
 
-        // ── GPU CTR decrypt ─────────────────────────────────────────────────
+        
         float ctr_dec_samples[TRIALS];
         for (int t = 0; t < REPS; t++) {
             CUDA_CHECK(cudaEventRecord(ev_s));
@@ -390,7 +390,7 @@ static void throughput_sweep(int R, uint8_t nonce[16], uint8_t iv[16])
             ctr_dec_samples[t] = ms;
         }
 
-        // ── GPU CBC encrypt ─────────────────────────────────────────────────
+        
         float cbc_enc_samples[TRIALS];
         for (int t = 0; t < REPS; t++) {
             CUDA_CHECK(cudaEventRecord(ev_s));
@@ -401,7 +401,7 @@ static void throughput_sweep(int R, uint8_t nonce[16], uint8_t iv[16])
             cbc_enc_samples[t] = ms;
         }
 
-        // ── GPU CBC decrypt ─────────────────────────────────────────────────
+        
         float cbc_dec_samples[TRIALS];
         for (int t = 0; t < REPS; t++) {
             CUDA_CHECK(cudaEventRecord(ev_s));
@@ -412,7 +412,7 @@ static void throughput_sweep(int R, uint8_t nonce[16], uint8_t iv[16])
             cbc_dec_samples[t] = ms;
         }
 
-        // Sort all four arrays for median
+        // Sorting all four arrays for median
         for (int i = 0; i < TRIALS-1; i++)
             for (int j = i+1; j < TRIALS; j++) {
                 if (ctr_enc_samples[j] < ctr_enc_samples[i]) {
@@ -463,7 +463,6 @@ static void throughput_sweep(int R, uint8_t nonce[16], uint8_t iv[16])
 }
 
 //Computing latency
-
 static void measure_single_block_latency(int R)
 {
     const int LAT_BLOCKS = 8;
