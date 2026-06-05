@@ -22,24 +22,69 @@ The recovered plaintext matches the original plaintext CBC mode
 
 --------CBC and CTR modes are validated--------
 
---------GPU Throughput Benchmark--------
-  Median of 31 trials, Buffer = 256 blocks (2048 nibble-bytes)
-  CTR encrypt                              :   0.0553 ms  (~0.037037 GB/s)
-  CBC decrypt                              :   0.0532 ms  (~0.038462 GB/s)
+--------SKINNY-64 GPU Throughput vs Input Size--------
+  Median of 31 trials per measurement.
 
---------Single 64-Byte Block Latency--------
+  Data Size   Mode               Wall (ms)    Throughput
+  ----------  --------------  ------------    ----------
+      1 KB   GPU-CTR-E        0.0420 ms    0.0244 GB/s
+      1 KB   GPU-CTR-D        0.0420 ms    0.0244 GB/s
+      1 KB   GPU-CBC-E        1.4028 ms    0.0007 GB/s
+      1 KB   GPU-CBC-D        0.0379 ms    0.0270 GB/s
+
+      4 KB   GPU-CTR-E        0.0593 ms    0.0691 GB/s
+      4 KB   GPU-CTR-D        0.0594 ms    0.0690 GB/s
+      4 KB   GPU-CBC-E        5.0432 ms    0.0008 GB/s
+      4 KB   GPU-CBC-D        0.0471 ms    0.0870 GB/s
+
+     16 KB   GPU-CTR-E        0.0532 ms    0.3077 GB/s
+     16 KB   GPU-CTR-D        0.0532 ms    0.3077 GB/s
+     16 KB   GPU-CBC-E       17.6466 ms    0.0009 GB/s
+     16 KB   GPU-CBC-D        0.0418 ms    0.3920 GB/s
+
+     64 KB   GPU-CTR-E        0.0727 ms    0.9014 GB/s
+     64 KB   GPU-CTR-D        0.0727 ms    0.9014 GB/s
+     64 KB   GPU-CBC-E       70.3130 ms    0.0009 GB/s
+     64 KB   GPU-CBC-D        0.0788 ms    0.8318 GB/s
+
+    256 KB   GPU-CTR-E        0.1761 ms    1.4884 GB/s
+    256 KB   GPU-CTR-D        0.1761 ms    1.4884 GB/s
+    256 KB   GPU-CBC-E      281.4218 ms    0.0009 GB/s
+    256 KB   GPU-CBC-D        0.1904 ms    1.3766 GB/s
+
+      1 MB   GPU-CTR-E        0.6810 ms    1.5398 GB/s
+      1 MB   GPU-CTR-D        0.6789 ms    1.5445 GB/s
+      1 MB   GPU-CBC-E     1135.8658 ms    0.0009 GB/s
+      1 MB   GPU-CBC-D        0.7025 ms    1.4927 GB/s
+
+      4 MB   GPU-CTR-E        2.4893 ms    1.6849 GB/s
+      4 MB   GPU-CTR-D        2.4914 ms    1.6835 GB/s
+      4 MB   GPU-CBC-E     4587.5415 ms    0.0009 GB/s
+      4 MB   GPU-CBC-D        2.8251 ms    1.4846 GB/s
+
+     16 MB   GPU-CTR-E        9.7555 ms    1.7198 GB/s
+     16 MB   GPU-CTR-D        9.7567 ms    1.7196 GB/s
+     16 MB   GPU-CBC-E    18422.2129 ms    0.0009 GB/s
+     16 MB   GPU-CBC-D       10.7489 ms    1.5608 GB/s
+
+     64 MB   GPU-CTR-E       38.7420 ms    1.7322 GB/s
+     64 MB   GPU-CTR-D       38.7420 ms    1.7322 GB/s
+     64 MB   GPU-CBC-E    73652.7891 ms    0.0009 GB/s
+     64 MB   GPU-CBC-D       42.7756 ms    1.5689 GB/s
+
+
+--------Single 64-Byte Block Latency (side data point)--------
   Input size : 8 cipher blocks = 64 nibble-bytes
-  Trials     : 101  
-
-  CTR encrypt latency                 :    42.85 us
-  CBC decrypt latency                 :    42.02 us
+  Trials     : 101
+  CTR encrypt latency                 :    34.37 us
+  CBC decrypt latency                 :    34.69 us
 
 --------Key Schedule Cost--------
 
   Time (median of 101 trials)
-  CPU compute  (round_tweakey_schedule)            :    2.05 us
-  GPU upload   (cudaMemcpyToSymbol, PCIe)          :    7.17 us
-  Total key setup cost                             :    9.22 us
+  CPU compute                                      :    2.05 us
+  GPU upload                                       :    7.23 us
+  Total key setup cost                             :    9.28 us
 
   Space
   Expanded RTK in GPU constant memory              : 288 bytes  (36 rounds x 8 nibble-bytes)
@@ -48,4 +93,4 @@ The recovered plaintext matches the original plaintext CBC mode
   Device        : NVIDIA GeForce GTX 1080 Ti
   SMs           : 28
   Clock         : 1582 MHz
-  Global memory : 11708 MB
+  Global memory : 11715 MB
