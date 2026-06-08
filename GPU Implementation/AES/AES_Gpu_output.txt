@@ -1,0 +1,126 @@
+--------AES-128 GPU Implementation--------
+--------ECB, CTR and CBC Mode Tests--------
+
+Generating key schedule
+Key schedule generated and uploaded to GPU (RK_GPU + DRK_GPU)
+
+--------ECB Mode (GPU)--------
+
+Original Plaintext   : cf16cfe8fd0f98aacf16cfe8fd0f98aa
+ECB Ciphertext       : 4768721f8f22000d2e79e256ba2ad082
+Recovered Plaintext  : de886d2daf3a4c8d032ffc2792a46a32
+
+MISMATCH ECB mode (GPU)
+  got:      de886d2daf3a4c8d032ffc2792a46a32
+  expected: cf16cfe8fd0f98aacf16cfe8fd0f98aa
+
+--------CTR Mode (GPU)--------
+
+Original Plaintext   : cf16cfe8fd0f98aacf16cfe8fd0f98aa
+CTR Ciphertext       : b2e1a4e4e7b70119f1543faf4414ccc5
+Recovered Plaintext  : cf16cfe8fd0f98aacf16cfe8fd0f98aa
+
+The recovered plaintext matches the original plaintext CTR mode (GPU)
+
+--------CBC Mode (GPU)--------
+
+Original Plaintext   : cf16cfe8fd0f98aacf16cfe8fd0f98aa
+CBC Ciphertext       : 4768721f8f22000d2e79e256ba2ad082
+Recovered Plaintext  : de886d2daf3a4c8d032ffc2792a46a32
+
+MISMATCH CBC mode (GPU)
+  got:      de886d2daf3a4c8d032ffc2792a46a32
+  expected: cf16cfe8fd0f98aacf16cfe8fd0f98aa
+
+--------ECB, CBC and CTR modes validated (GPU)--------
+
+--------AES-128 GPU Throughput vs Input Size--------
+  Median of 31 trials per measurement.
+
+  Data Size   Mode               Wall (ms)    Throughput
+  ----------  --------------  ------------    ----------
+      1 KB   GPU-ECB-E        0.0143 ms    0.0717 GB/s
+      1 KB   GPU-ECB-D        0.0206 ms    0.0498 GB/s
+      1 KB   GPU-CTR-E        0.0207 ms    0.0494 GB/s
+      1 KB   GPU-CTR-D        0.0207 ms    0.0494 GB/s
+      1 KB   GPU-CBC-E        0.2055 ms    0.0050 GB/s
+      1 KB   GPU-CBC-D        0.0214 ms    0.0479 GB/s
+
+      4 KB   GPU-ECB-E        0.0355 ms    0.1154 GB/s
+      4 KB   GPU-ECB-D        0.0652 ms    0.0629 GB/s
+      4 KB   GPU-CTR-E        0.0542 ms    0.0755 GB/s
+      4 KB   GPU-CTR-D        0.0543 ms    0.0755 GB/s
+      4 KB   GPU-CBC-E        0.8089 ms    0.0051 GB/s
+      4 KB   GPU-CBC-D        0.0651 ms    0.0629 GB/s
+
+     16 KB   GPU-ECB-E        0.0355 ms    0.4617 GB/s
+     16 KB   GPU-ECB-D        0.0655 ms    0.2500 GB/s
+     16 KB   GPU-CTR-E        0.0549 ms    0.2985 GB/s
+     16 KB   GPU-CTR-D        0.0546 ms    0.3001 GB/s
+     16 KB   GPU-CBC-E        3.2215 ms    0.0051 GB/s
+     16 KB   GPU-CBC-D        0.0655 ms    0.2500 GB/s
+
+     64 KB   GPU-ECB-E        0.0354 ms    1.8534 GB/s
+     64 KB   GPU-ECB-D        0.0655 ms    1.0010 GB/s
+     64 KB   GPU-CTR-E        0.0547 ms    1.1991 GB/s
+     64 KB   GPU-CTR-D        0.0546 ms    1.2005 GB/s
+     64 KB   GPU-CBC-E        9.0132 ms    0.0073 GB/s
+     64 KB   GPU-CBC-D        0.0468 ms    1.4008 GB/s
+
+    256 KB   GPU-ECB-E        0.0260 ms   10.0887 GB/s
+    256 KB   GPU-ECB-D        0.0471 ms    5.5652 GB/s
+    256 KB   GPU-CTR-E        0.0390 ms    6.7203 GB/s
+    256 KB   GPU-CTR-D        0.0389 ms    6.7368 GB/s
+    256 KB   GPU-CBC-E       36.1889 ms    0.0072 GB/s
+    256 KB   GPU-CBC-D        0.0471 ms    5.5652 GB/s
+
+      1 MB   GPU-ECB-E        0.0911 ms   11.5056 GB/s
+      1 MB   GPU-ECB-D        0.1762 ms    5.9524 GB/s
+      1 MB   GPU-CTR-E        0.1446 ms    7.2512 GB/s
+      1 MB   GPU-CTR-D        0.1445 ms    7.2544 GB/s
+      1 MB   GPU-CBC-E      144.7437 ms    0.0072 GB/s
+      1 MB   GPU-CBC-D        0.1761 ms    5.9557 GB/s
+
+      4 MB   GPU-ECB-E        0.3497 ms   11.9952 GB/s
+      4 MB   GPU-ECB-D        0.6821 ms    6.1490 GB/s
+      4 MB   GPU-CTR-E        0.5638 ms    7.4392 GB/s
+      4 MB   GPU-CTR-D        0.5642 ms    7.4338 GB/s
+      4 MB   GPU-CBC-E      595.6301 ms    0.0070 GB/s
+      4 MB   GPU-CBC-D        0.6885 ms    6.0921 GB/s
+
+     16 MB   GPU-ECB-E        1.3261 ms   12.6514 GB/s
+     16 MB   GPU-ECB-D        2.6194 ms    6.4049 GB/s
+     16 MB   GPU-CTR-E        2.1581 ms    7.7741 GB/s
+     16 MB   GPU-CTR-D        2.1586 ms    7.7723 GB/s
+     16 MB   GPU-CBC-E     2419.1570 ms    0.0069 GB/s
+     16 MB   GPU-CBC-D        2.6372 ms    6.3619 GB/s
+
+     64 MB   GPU-ECB-E        5.2770 ms   12.7173 GB/s
+     64 MB   GPU-ECB-D       10.4583 ms    6.4168 GB/s
+     64 MB   GPU-CTR-E        8.6138 ms    7.7909 GB/s
+     64 MB   GPU-CTR-D        8.6262 ms    7.7797 GB/s
+     64 MB   GPU-CBC-E     9677.7852 ms    0.0069 GB/s
+     64 MB   GPU-CBC-D       10.5125 ms    6.3837 GB/s
+
+
+--------Single 128-Byte Block Latency (side data point)--------
+  Input size : 8 cipher blocks = 128 bytes
+  Trials     : 101
+  GPU CTR encrypt latency             :    25.34 us
+  GPU CBC decrypt latency             :    25.38 us
+
+--------Key Schedule Cost--------
+
+  Time (median of 101 trials)
+  GPU upload (RK_GPU + DRK_GPU)                    :   12.03 us
+
+  Space
+  RK_GPU  in constant memory                       : 176 bytes  (11 rounds x 16 bytes)
+  DRK_GPU in constant memory                       : 176 bytes  (11 rounds x 16 bytes)
+  Combined constant memory                         : 352 bytes  total
+
+--------GPU Device--------
+  Device        : NVIDIA GeForce RTX 2080 Ti
+  SMs           : 68
+  Clock         : 1545 MHz
+  Global memory : 11347 MB
