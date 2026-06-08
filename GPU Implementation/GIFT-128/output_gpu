@@ -1,0 +1,96 @@
+-------- GIFT-128 CUDA Implementation --------
+-------- CTR and CBC Mode Tests --------
+
+CTR Mode (GPU)--------
+
+Original Plaintext    : cf16cfe8fd0f98aa0000000000000000
+CTR Ciphertext        : 53b75bef157333b271a5493de3808880
+Recovered Plaintext   : cf16cfe8fd0f98aa0000000000000000
+
+The recovered plaintext matches the original plaintext CTR mode
+
+--------CBC Mode (GPU)--------
+
+Original Plaintext    : cf16cfe8fd0f98aa0000000000000000
+CBC Ciphertext        : 9e57ac41af6979a3884db9b081c63a1e
+Recovered Plaintext   : cf16cfe8fd0f98aa0000000000000000
+
+The recovered plaintext matches the original plaintext CBC mode
+
+--------CBC and CTR modes are validated--------
+
+   GIFT-128 Throughput vs Input Size                             
+   Modes: GPU-CTR encrypt, GPU-CBC-decrypt                       
+  GPU timing: kernel execution only (no H2D/D2H transfers).
+  Throughput denominator: actual data bytes (num_blocks x 16).
+size_bytes,mode,wall_ms,throughput_GBs
+  Data Size   Mode               Wall (ms)    Throughput
+  ----------  --------------  ------------    ----------
+      1 KB   GPU-CTR          0.1546 ms    0.0066 GB/s
+      1 KB   GPU-CBC-D        0.1249 ms    0.0082 GB/s
+
+1024,GPU-CTR,0.154624,0.006623
+1024,GPU-CBC-D,0.124928,0.008197
+      4 KB   GPU-CTR          0.2478 ms    0.0165 GB/s
+      4 KB   GPU-CBC-D        0.1772 ms    0.0231 GB/s
+
+4096,GPU-CTR,0.247808,0.016529
+4096,GPU-CBC-D,0.177152,0.023121
+     16 KB   GPU-CTR          0.2232 ms    0.0734 GB/s
+     16 KB   GPU-CBC-D        0.1638 ms    0.1000 GB/s
+
+16384,GPU-CTR,0.223232,0.073394
+16384,GPU-CBC-D,0.163840,0.100000
+     64 KB   GPU-CTR          0.1935 ms    0.3386 GB/s
+     64 KB   GPU-CBC-D        0.1423 ms    0.4604 GB/s
+
+65536,GPU-CTR,0.193536,0.338624
+65536,GPU-CBC-D,0.142336,0.460432
+    256 KB   GPU-CTR          0.5632 ms    0.4655 GB/s
+    256 KB   GPU-CBC-D        0.4708 ms    0.5568 GB/s
+
+262144,GPU-CTR,0.563200,0.465455
+262144,GPU-CBC-D,0.470816,0.556787
+      1 MB   GPU-CTR          1.8565 ms    0.5648 GB/s
+      1 MB   GPU-CBC-D        1.6671 ms    0.6290 GB/s
+
+1048576,GPU-CTR,1.856512,0.564810
+1048576,GPU-CBC-D,1.667072,0.628993
+      4 MB   GPU-CTR          7.0994 ms    0.5908 GB/s
+      4 MB   GPU-CBC-D        6.5188 ms    0.6434 GB/s
+
+4194304,GPU-CTR,7.099392,0.590798
+4194304,GPU-CBC-D,6.518784,0.643418
+     16 MB   GPU-CTR         28.0924 ms    0.5972 GB/s
+     16 MB   GPU-CBC-D       25.9195 ms    0.6473 GB/s
+
+16777216,GPU-CTR,28.092417,0.597215
+16777216,GPU-CBC-D,25.919489,0.647282
+     64 MB   GPU-CTR        112.0901 ms    0.5987 GB/s
+     64 MB   GPU-CBC-D      103.4844 ms    0.6485 GB/s
+
+67108864,GPU-CTR,112.090111,0.598705
+67108864,GPU-CBC-D,103.484413,0.648492
+
+Single 64-Byte Block Latency 
+  Input size : 4 cipher blocks = 64 bytes
+  Trials     : 101
+
+  CTR encrypt latency (H2D+K+D2H)     :   124.03 us
+  CBC decrypt latency (H2D+K+D2H)     :    74.27 us
+
+--------Key Schedule Cost--------
+
+  Time (median of 101 trials)
+  CPU compute  (gift128_precompute_round_keys)     :   12.35 us
+  GPU upload   (cudaMemcpy H->D, PCIe)             :    7.17 us
+  Total key setup cost                             :   19.52 us
+
+  Space
+  Expanded round keys in GPU global memory         : 1280 bytes  (40 rounds x 32 nibble-bytes)
+
+--------GPU Device--------
+  Device        : NVIDIA GeForce GTX 1080 Ti
+  SMs           : 28
+  Clock         : 1582 MHz
+  Global memory : 11708 MB
