@@ -11,7 +11,7 @@ using namespace std;
 
 #define SKINNY64_ROUNDS 36
 #define TRIALS          31
-#define BUF_BLOCKS      256   
+#define BUF_BLOCKS      256
 
 const uint8_t S[16]         = {0xc,0x6,0x9,0x0,0x1,0xa,0x2,0xb,0x3,0x8,0x5,0xd,0x4,0xe,0x7,0xf};
 const uint8_t S_inverse[16] = {0x3,0x4,0x6,0x8,0xc,0xa,0x1,0xe,0x9,0x2,0x5,0x7,0x0,0xb,0xd,0xf};
@@ -48,8 +48,6 @@ void convert_hex_string_to_statearray(string hex_string, uint8_t int_array[16],
         else          int_array[i]       = val;
     }
 }
-
-
 
 uint8_t TK2_lfsr(uint8_t x)
 {
@@ -141,6 +139,22 @@ void decryption_block(int R, uint8_t in[16], uint8_t out[16], uint8_t TK[][8])
     }
 }
 
+//---ECB mode---
+void ecb_encrypt(int R, uint8_t *plaintext, uint8_t *ciphertext,
+                 int num_blocks, uint8_t TK[][8])
+{
+    for (int b = 0; b < num_blocks; b++)
+        encryption_block(R, &plaintext[b*16], &ciphertext[b*16], TK);
+}
+
+void ecb_decrypt(int R, uint8_t *ciphertext, uint8_t *plaintext,
+                 int num_blocks, uint8_t TK[][8])
+{
+    for (int b = 0; b < num_blocks; b++)
+        decryption_block(R, &ciphertext[b*16], &plaintext[b*16], TK);
+}
+
+//---CTR mode---
 void increment_counter(uint8_t counter[16])
 {
     for (int i = 15; i >= 0; i--) {
@@ -168,6 +182,7 @@ void ctr_decrypt(int R, uint8_t *ciphertext, uint8_t *plaintext,
     ctr_encrypt(R, ciphertext, plaintext, num_blocks, nonce, TK);
 }
 
+//---CBC mode---
 void cbc_encrypt(int R, uint8_t *plaintext, uint8_t *ciphertext,
                  int num_blocks, uint8_t iv[16], uint8_t TK[][8])
 {
@@ -195,8 +210,7 @@ void cbc_decrypt(int R, uint8_t *ciphertext, uint8_t *plaintext,
     }
 }
 
-//----Validation----
-
+//---Validation---
 int assert_equal(const char *label, uint8_t *got, uint8_t *expected, int len)
 {
     if (memcmp(got, expected, len) == 0) {
@@ -211,7 +225,6 @@ int assert_equal(const char *label, uint8_t *got, uint8_t *expected, int len)
     return 0;
 }
 
-//----To calculate time----
 
 static inline uint64_t rdtsc()
 {
@@ -234,14 +247,13 @@ static int cmp_dbl(const void *a, const void *b)
     return (x > y) - (x < y);
 }
 
-// Wall-clock elapsed milliseconds between two timespec values
 static inline double elapsed_ms(struct timespec t0, struct timespec t1)
 {
     return (t1.tv_sec - t0.tv_sec) * 1e3 +
            (t1.tv_nsec - t0.tv_nsec) * 1e-6;
 }
 
-
+//----Computing Throughput----
 
 static void throughput_sweep(int R, uint8_t RTK[][8],
                               uint8_t nonce[16], uint8_t iv[16])
@@ -262,7 +274,6 @@ static void throughput_sweep(int R, uint8_t RTK[][8],
         64  * 1024 * 1024
     };
     const int NSIZES = (int)(sizeof(data_sizes) / sizeof(data_sizes[0]));
-    const int WARMUP = 3;
 
     printf("  %-10s  %-14s  %12s  %12s\n",
            "Data Size", "Mode", "Wall (ms)", "Throughput");
@@ -280,12 +291,30 @@ static void throughput_sweep(int R, uint8_t RTK[][8],
         if (!plain || !cipher) { fprintf(stderr, "malloc failed\n"); exit(1); }
         for (size_t i = 0; i < buf_size; i++) plain[i] = (uint8_t)(i & 0xf);
 
+  
+        ecb_encrypt(R, plain, cipher, (int)num_blocks, RTK);
+
         struct timespec t0, t1;
 
-       
-        for (int w = 0; w < WARMUP; w++)
-            ctr_encrypt(R, plain, cipher, (int)num_blocks, nonce, RTK);
+        //----ECB encryption---
+        double ecb_enc_samples[TRIALS];
+        for (int t = 0; t < TRIALS; t++) {
+            clock_gettime(CLOCK_MONOTONIC, &t0);
+            ecb_encrypt(R, plain, cipher, (int)num_blocks, RTK);
+            clock_gettime(CLOCK_MONOTONIC, &t1);
+            ecb_enc_samples[t] = elapsed_ms(t0, t1);
+        }
 
+        //---ECB decryption---
+        double ecb_dec_samples[TRIALS];
+        for (int t = 0; t < TRIALS; t++) {
+            clock_gettime(CLOCK_MONOTONIC, &t0);
+            ecb_decrypt(R, cipher, plain, (int)num_blocks, RTK);
+            clock_gettime(CLOCK_MONOTONIC, &t1);
+            ecb_dec_samples[t] = elapsed_ms(t0, t1);
+        }
+
+        //----CTR encryption----
         double ctr_enc_samples[TRIALS];
         for (int t = 0; t < TRIALS; t++) {
             uint8_t n[16]; memcpy(n, nonce, 16);
@@ -295,10 +324,7 @@ static void throughput_sweep(int R, uint8_t RTK[][8],
             ctr_enc_samples[t] = elapsed_ms(t0, t1);
         }
 
-       
-        for (int w = 0; w < WARMUP; w++)
-            ctr_decrypt(R, cipher, plain, (int)num_blocks, nonce, RTK);
-
+        //----CTR decryption----
         double ctr_dec_samples[TRIALS];
         for (int t = 0; t < TRIALS; t++) {
             uint8_t n[16]; memcpy(n, nonce, 16);
@@ -308,10 +334,7 @@ static void throughput_sweep(int R, uint8_t RTK[][8],
             ctr_dec_samples[t] = elapsed_ms(t0, t1);
         }
 
-        
-        for (int w = 0; w < WARMUP; w++)
-            cbc_encrypt(R, plain, cipher, (int)num_blocks, iv, RTK);
-
+        //----CBC encryption----
         double cbc_enc_samples[TRIALS];
         for (int t = 0; t < TRIALS; t++) {
             uint8_t v[16]; memcpy(v, iv, 16);
@@ -321,10 +344,7 @@ static void throughput_sweep(int R, uint8_t RTK[][8],
             cbc_enc_samples[t] = elapsed_ms(t0, t1);
         }
 
-       
-        for (int w = 0; w < WARMUP; w++)
-            cbc_decrypt(R, cipher, plain, (int)num_blocks, iv, RTK);
-
+        //----CBC decryption----
         double cbc_dec_samples[TRIALS];
         for (int t = 0; t < TRIALS; t++) {
             uint8_t v[16]; memcpy(v, iv, 16);
@@ -334,17 +354,23 @@ static void throughput_sweep(int R, uint8_t RTK[][8],
             cbc_dec_samples[t] = elapsed_ms(t0, t1);
         }
 
-        // Sort all four arrays for median
+      
+        qsort(ecb_enc_samples, TRIALS, sizeof(double), cmp_dbl);
+        qsort(ecb_dec_samples, TRIALS, sizeof(double), cmp_dbl);
         qsort(ctr_enc_samples, TRIALS, sizeof(double), cmp_dbl);
         qsort(ctr_dec_samples, TRIALS, sizeof(double), cmp_dbl);
         qsort(cbc_enc_samples, TRIALS, sizeof(double), cmp_dbl);
         qsort(cbc_dec_samples, TRIALS, sizeof(double), cmp_dbl);
 
+        double ecb_enc_ms = ecb_enc_samples[TRIALS/2];
+        double ecb_dec_ms = ecb_dec_samples[TRIALS/2];
         double ctr_enc_ms = ctr_enc_samples[TRIALS/2];
         double ctr_dec_ms = ctr_dec_samples[TRIALS/2];
         double cbc_enc_ms = cbc_enc_samples[TRIALS/2];
         double cbc_dec_ms = cbc_dec_samples[TRIALS/2];
 
+        double ecb_enc_gbs = (double)data_bytes / (ecb_enc_ms * 1e-3) / 1e9;
+        double ecb_dec_gbs = (double)data_bytes / (ecb_dec_ms * 1e-3) / 1e9;
         double ctr_enc_gbs = (double)data_bytes / (ctr_enc_ms * 1e-3) / 1e9;
         double ctr_dec_gbs = (double)data_bytes / (ctr_dec_ms * 1e-3) / 1e9;
         double cbc_enc_gbs = (double)data_bytes / (cbc_enc_ms * 1e-3) / 1e9;
@@ -354,6 +380,10 @@ static void throughput_sweep(int R, uint8_t RTK[][8],
         double      nd   = (data_bytes >= 1024*1024) ? data_bytes/1048576.0
                                                       : data_bytes/1024.0;
 
+        printf("  %5.0f %-3s  CPU-ECB-E    %10.4f ms  %8.4f GB/s\n",
+               nd, unit, ecb_enc_ms, ecb_enc_gbs);
+        printf("  %5.0f %-3s  CPU-ECB-D    %10.4f ms  %8.4f GB/s\n",
+               nd, unit, ecb_dec_ms, ecb_dec_gbs);
         printf("  %5.0f %-3s  CPU-CTR-E    %10.4f ms  %8.4f GB/s\n",
                nd, unit, ctr_enc_ms, ctr_enc_gbs);
         printf("  %5.0f %-3s  CPU-CTR-D    %10.4f ms  %8.4f GB/s\n",
@@ -369,8 +399,7 @@ static void throughput_sweep(int R, uint8_t RTK[][8],
     }
 }
 
-//----Calculationg single block latency----
-
+//----Computing Single Block Latency----
 static void measure_single_block_latency(int R, uint8_t RTK[][8],
                                           uint8_t nonce[16], uint8_t iv[16])
 {
@@ -382,12 +411,29 @@ static void measure_single_block_latency(int R, uint8_t RTK[][8],
     uint8_t recov [LAT_BLOCKS * 16];
     for (int i = 0; i < LAT_BLOCKS * 16; i++) plain[i] = (uint8_t)(i & 0xf);
 
-    // Warm-up
-    ctr_encrypt(R, plain, cipher, LAT_BLOCKS, nonce, RTK);
-    cbc_encrypt(R, plain, cipher, LAT_BLOCKS, iv, RTK);
-
     struct timespec t0, t1;
 
+    //----Computing ECB encrypt latency---
+    float ecb_enc_samples[LAT_TRIALS];
+    for (int t = 0; t < LAT_TRIALS; t++) {
+        clock_gettime(CLOCK_MONOTONIC, &t0);
+        ecb_encrypt(R, plain, cipher, LAT_BLOCKS, RTK);
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        ecb_enc_samples[t] = (float)(elapsed_ms(t0, t1) * 1000.0);
+    }
+
+    //----Computing ECB decrypt latency----
+    ecb_encrypt(R, plain, cipher, LAT_BLOCKS, RTK);   
+
+    float ecb_dec_samples[LAT_TRIALS];
+    for (int t = 0; t < LAT_TRIALS; t++) {
+        clock_gettime(CLOCK_MONOTONIC, &t0);
+        ecb_decrypt(R, cipher, recov, LAT_BLOCKS, RTK);
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        ecb_dec_samples[t] = (float)(elapsed_ms(t0, t1) * 1000.0);
+    }
+
+    //---Computing CTR Encrypt Latency---
     float ctr_samples[LAT_TRIALS];
     for (int t = 0; t < LAT_TRIALS; t++) {
         uint8_t n[16]; memcpy(n, nonce, 16);
@@ -397,9 +443,9 @@ static void measure_single_block_latency(int R, uint8_t RTK[][8],
         ctr_samples[t] = (float)(elapsed_ms(t0, t1) * 1000.0);
     }
 
-    // Pre-computing valid CBC ciphertext for decrypt
+    //---Computing CBC decrypt latency---
     uint8_t v0[16]; memcpy(v0, iv, 16);
-    cbc_encrypt(R, plain, cipher, LAT_BLOCKS, v0, RTK);
+    cbc_encrypt(R, plain, cipher, LAT_BLOCKS, v0, RTK);  
 
     float cbc_samples[LAT_TRIALS];
     for (int t = 0; t < LAT_TRIALS; t++) {
@@ -410,21 +456,27 @@ static void measure_single_block_latency(int R, uint8_t RTK[][8],
         cbc_samples[t] = (float)(elapsed_ms(t0, t1) * 1000.0);
     }
 
+    
     for (int i = 0; i < LAT_TRIALS-1; i++)
         for (int j = i+1; j < LAT_TRIALS; j++) {
-            if (ctr_samples[j] < ctr_samples[i]) { float t=ctr_samples[i]; ctr_samples[i]=ctr_samples[j]; ctr_samples[j]=t; }
-            if (cbc_samples[j] < cbc_samples[i]) { float t=cbc_samples[i]; cbc_samples[i]=cbc_samples[j]; cbc_samples[j]=t; }
+#define Sorting(a) if ((a)[j] < (a)[i]) { float _t=(a)[i]; (a)[i]=(a)[j]; (a)[j]=_t; }
+            Sorting(ecb_enc_samples)
+            Sorting(ecb_dec_samples)
+            Sorting(ctr_samples)
+            Sorting(cbc_samples)
+#undef Sorting
         }
 
     printf("\n--------Single 64-Byte Block Latency (side data point)--------\n");
     printf("  Input size : %d cipher blocks = 64 nibble-bytes\n", LAT_BLOCKS);
     printf("  Trials     : %d\n", LAT_TRIALS);
+    printf("  %-35s : %8.2f us\n", "ECB encrypt latency", ecb_enc_samples[LAT_TRIALS/2]);
+    printf("  %-35s : %8.2f us\n", "ECB decrypt latency", ecb_dec_samples[LAT_TRIALS/2]);
     printf("  %-35s : %8.2f us\n", "CTR encrypt latency", ctr_samples[LAT_TRIALS/2]);
     printf("  %-35s : %8.2f us\n", "CBC decrypt latency", cbc_samples[LAT_TRIALS/2]);
 }
 
-//----Calculating Key schedule cost----
-
+//---Computing Key Schedule Cost---
 static void measure_key_schedule_cost(uint8_t tweakey_1[16], uint8_t tweakey_2[16], int R)
 {
     const int KS_TRIALS = 101;
@@ -432,12 +484,6 @@ static void measure_key_schedule_cost(uint8_t tweakey_1[16], uint8_t tweakey_2[1
     uint8_t TK_1[SKINNY64_ROUNDS][16];
     uint8_t TK_2[SKINNY64_ROUNDS][16];
     uint8_t RTK [SKINNY64_ROUNDS][8];
-
-   
-    for (int i = 0; i < 100; i++) {
-        for (int j = 0; j < 16; j++) { TK_1[0][j] = tweakey_1[j]; TK_2[0][j] = tweakey_2[j]; }
-        round_tweakey_schedule(R, TK_1, TK_2, RTK);
-    }
 
     struct timespec t0, t1;
     double ks_samples[KS_TRIALS];
@@ -462,6 +508,24 @@ static void measure_key_schedule_cost(uint8_t tweakey_1[16], uint8_t tweakey_2[1
            (size_t)(SKINNY64_ROUNDS * 8), SKINNY64_ROUNDS);
 }
 
+//Computing Cycles per bytes
+
+static double measure_cycles_per_byte_ecb(int R, uint8_t RTK[][8])
+{
+    static uint8_t buf[BUF_BLOCKS * 16];
+    static uint8_t out[BUF_BLOCKS * 16];
+    for (int i = 0; i < BUF_BLOCKS * 16; i++) buf[i] = (uint8_t)(i & 0xf);
+
+    uint64_t samples[TRIALS];
+    for (int t = 0; t < TRIALS; t++) {
+        uint64_t t0 = rdtsc();
+        ecb_encrypt(R, buf, out, BUF_BLOCKS, RTK);
+        uint64_t t1 = rdtsc();
+        samples[t] = t1 - t0;
+    }
+    qsort(samples, TRIALS, sizeof(uint64_t), cmp_u64);
+    return (double)samples[TRIALS/2] / (BUF_BLOCKS * 8);
+}
 
 static double measure_cycles_per_byte_ctr(int R, uint8_t RTK[][8])
 {
@@ -469,7 +533,6 @@ static double measure_cycles_per_byte_ctr(int R, uint8_t RTK[][8])
     static uint8_t out[BUF_BLOCKS * 16];
     uint8_t nonce[16] = {0};
     for (int i = 0; i < BUF_BLOCKS * 16; i++) buf[i] = (uint8_t)(i & 0xf);
-    ctr_encrypt(R, buf, out, BUF_BLOCKS, nonce, RTK);
 
     uint64_t samples[TRIALS];
     for (int t = 0; t < TRIALS; t++) {
@@ -489,7 +552,6 @@ static double measure_cycles_per_byte_cbc(int R, uint8_t RTK[][8])
     static uint8_t out[BUF_BLOCKS * 16];
     uint8_t iv[16] = {0};
     for (int i = 0; i < BUF_BLOCKS * 16; i++) buf[i] = (uint8_t)(i & 0xf);
-    cbc_encrypt(R, buf, out, BUF_BLOCKS, iv, RTK);
 
     uint64_t samples[TRIALS];
     for (int t = 0; t < TRIALS; t++) {
@@ -502,6 +564,7 @@ static double measure_cycles_per_byte_cbc(int R, uint8_t RTK[][8])
     qsort(samples, TRIALS, sizeof(uint64_t), cmp_u64);
     return (double)samples[TRIALS/2] / (BUF_BLOCKS * 8);
 }
+
 
 static void print_code_size()
 {
@@ -524,6 +587,8 @@ static void print_code_size()
     printf("  %-52s : %3zu bytes\n", "Total table footprint", total);
 }
 
+//---Performance Metrics----
+
 static void print_performance_metrics(int R, uint8_t RTK[][8],
                                        uint8_t tweakey_1[16], uint8_t tweakey_2[16])
 {
@@ -531,21 +596,26 @@ static void print_performance_metrics(int R, uint8_t RTK[][8],
     printf("  Median of %d trials, Buffer = %d blocks (%d nibble-bytes, %d actual bytes)\n",
            TRIALS, BUF_BLOCKS, BUF_BLOCKS * 16, BUF_BLOCKS * 8);
 
+    double cpb_ecb = measure_cycles_per_byte_ecb(R, RTK);
     double cpb_ctr = measure_cycles_per_byte_ctr(R, RTK);
     double cpb_cbc = measure_cycles_per_byte_cbc(R, RTK);
 
+    printf("  %-40s : %8.2f  cycles/byte\n", "ECB encrypt", cpb_ecb);
     printf("  %-40s : %8.2f  cycles/byte\n", "CTR encrypt", cpb_ctr);
     printf("  %-40s : %8.2f  cycles/byte\n", "CBC encrypt (chained)", cpb_cbc);
-    printf("\n  CBC overhead vs CTR                    : %+.2f cycles/byte\n",
+    printf("\n  CTR overhead vs ECB                    : %+.2f cycles/byte\n",
+           cpb_ctr - cpb_ecb);
+    printf("  CBC overhead vs ECB                    : %+.2f cycles/byte\n",
+           cpb_cbc - cpb_ecb);
+    printf("  CBC overhead vs CTR                    : %+.2f cycles/byte\n",
            cpb_cbc - cpb_ctr);
 }
-
 
 
 int main()
 {
     printf("--------SKINNY-64-128 CPU Implementation--------\n");
-    printf("--------CTR and CBC Mode Tests--------\n\n");
+    printf("--------ECB, CTR and CBC Mode Tests--------\n\n");
 
     int R = SKINNY64_ROUNDS;
 
@@ -568,12 +638,28 @@ int main()
     uint8_t plain_text_0[16];
     convert_hex_string_to_statearray(plain_string, plain_text_0, false);
 
-    
-    printf("--------CTR Mode--------\n\n");
-
     int num_blocks = 1;
-    uint8_t ctr_plain[16], ctr_cipher[16], ctr_recovered[16];
     uint8_t nonce[16] = {0};
+    uint8_t iv[16]    = {0};
+
+    //---ECB Mode Evaluation---
+    printf("--------ECB Mode--------\n\n");
+
+    uint8_t ecb_plain[16], ecb_cipher[16], ecb_recovered[16];
+    for (int i = 0; i < 16; i++) ecb_plain[i] = plain_text_0[i];
+
+    printf("Original Plaintext   : "); print_message(ecb_plain, num_blocks);
+    ecb_encrypt(R, ecb_plain, ecb_cipher, num_blocks, RTK);
+    printf("ECB Ciphertext       : "); print_message(ecb_cipher, num_blocks);
+    ecb_decrypt(R, ecb_cipher, ecb_recovered, num_blocks, RTK);
+    printf("Recovered Plaintext  : "); print_message(ecb_recovered, num_blocks);
+    printf("\n");
+    assert_equal("ECB mode", ecb_recovered, ecb_plain, num_blocks * 16);
+
+    //---CTR Mode Evaluation---
+    printf("\n--------CTR Mode--------\n\n");
+
+    uint8_t ctr_plain[16], ctr_cipher[16], ctr_recovered[16];
     for (int i = 0; i < 16; i++) ctr_plain[i] = plain_text_0[i];
 
     printf("Original Plaintext   : "); print_message(ctr_plain, num_blocks);
@@ -584,11 +670,10 @@ int main()
     printf("\n");
     assert_equal("CTR mode", ctr_recovered, ctr_plain, num_blocks * 16);
 
-    
+    //---CBC Mode Evaluation---
     printf("\n--------CBC Mode--------\n\n");
 
     uint8_t cbc_plain[16], cbc_cipher[16], cbc_recovered[16];
-    uint8_t iv[16] = {0};
     for (int i = 0; i < 16; i++) cbc_plain[i] = plain_text_0[i];
 
     printf("Original Plaintext   : "); print_message(cbc_plain, num_blocks);
@@ -599,9 +684,8 @@ int main()
     printf("\n");
     assert_equal("CBC mode", cbc_recovered, cbc_plain, num_blocks * 16);
 
-    printf("\n--------CBC and CTR modes are validated--------\n");
+    printf("\n--------ECB, CBC and CTR modes are validated--------\n");
 
-   
     print_code_size();
     print_performance_metrics(R, RTK, tweakey_1, tweakey_2);
     throughput_sweep(R, RTK, nonce, iv);
