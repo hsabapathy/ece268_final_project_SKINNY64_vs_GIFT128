@@ -1,5 +1,4 @@
-// GIFT-128 Block Cipher — GPU-only CUDA Implementation
-// Metrics formatted to match SKINNY-64-128 GPU reference output.
+// GIFT-128 Block Cipher GPU CUDA Implementation
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,18 +10,15 @@
 
 using namespace std;
 
-// ===========================================================================
 // Constants
-// ===========================================================================
+
 
 #define GIFT_ROUNDS  40
 #define BLOCK_BYTES  16
 #define KEY_BYTES    16
 #define TRIALS       31
 
-// ===========================================================================
-// Host-side lookup tables (used only to populate __constant__ memory)
-// ===========================================================================
+// Host-side lookup tables (used to populate __constant__ memory)
 
 static const uint8_t GIFT_S[16]     = {1,10, 4,12, 6,15, 3, 9, 2,13,11, 7, 5, 0, 8,14};
 static const uint8_t GIFT_S_inv[16] = {13, 0, 8, 6, 2,12, 4,11,14, 7, 1,10, 3, 9,15, 5};
@@ -59,9 +55,7 @@ static const uint8_t GIFT_RC[62] = {
     0x10,0x20
 };
 
-// ===========================================================================
-// CUDA error check macro
-// ===========================================================================
+// CUDA error checker
 
 #define CUDA_CHECK(call)                                                        \
     do {                                                                        \
@@ -73,9 +67,7 @@ static const uint8_t GIFT_RC[62] = {
         }                                                                       \
     } while (0)
 
-// ===========================================================================
 // GPU __constant__ memory tables
-// ===========================================================================
 
 __constant__ uint8_t d_GIFT_S[16];
 __constant__ uint8_t d_GIFT_S_inv[16];
@@ -92,9 +84,7 @@ static void upload_constant_tables()
     CUDA_CHECK(cudaMemcpyToSymbol(d_GIFT_RC,    GIFT_RC,    sizeof(GIFT_RC)));
 }
 
-// ===========================================================================
-// CPU helpers: pack / unpack nibbles (used only for key setup & test setup)
-// ===========================================================================
+// CPU helpers: pack / unpack nibbles
 
 static void pack_nibbles(const uint8_t nibbles[32], uint8_t bytes[16])
 {
@@ -110,9 +100,7 @@ static void unpack_nibbles(const uint8_t bytes[16], uint8_t nibbles[32])
     }
 }
 
-// ===========================================================================
 // GPU device helpers: pack / unpack nibbles
-// ===========================================================================
 
 __device__ __forceinline__
 static void d_pack_nibbles(const uint8_t nibbles[32], uint8_t bytes[16])
@@ -130,9 +118,7 @@ static void d_unpack_nibbles(const uint8_t bytes[16], uint8_t nibbles[32])
     }
 }
 
-// ===========================================================================
-// CPU key-schedule helpers (key setup only — no cipher on CPU)
-// ===========================================================================
+// CPU key-schedule helpers
 
 static void gift128_precompute_round_keys(const uint8_t key[KEY_BYTES],
                                           uint8_t out_rkeys[GIFT_ROUNDS * 32])
@@ -158,9 +144,7 @@ static void gift128_precompute_round_keys(const uint8_t key[KEY_BYTES],
     }
 }
 
-// ===========================================================================
 // GPU device functions: cipher core
-// ===========================================================================
 
 __device__ __forceinline__
 static void d_gift128_enc_nibbles(uint8_t input[32], uint8_t key[32])
@@ -287,9 +271,7 @@ static void d_gift128_decrypt_block_precomp(
     d_pack_nibbles(input, plaintext);
 }
 
-// ===========================================================================
 // GPU kernels
-// ===========================================================================
 
 __global__
 void gift128_ecb_encrypt_kernel(const uint8_t* __restrict__ d_key,
@@ -427,9 +409,7 @@ void gift128_cbc_decrypt_kernel(const uint8_t* __restrict__ d_rkeys,
         d_output[offset + i] = decrypted[i] ^ prev[i];
 }
 
-// ===========================================================================
 // Host wrappers
-// ===========================================================================
 
 void gpu_ecb_encrypt(const uint8_t *key,
                      const uint8_t *input,
@@ -579,10 +559,7 @@ void gpu_cbc_decrypt(const uint8_t *key,
     cudaFree(d_rkeys); cudaFree(d_iv); cudaFree(d_in); cudaFree(d_out);
 }
 
-// ===========================================================================
 // Validation
-// ===========================================================================
-
 static int assert_equal(const char *label, const uint8_t *got,
                         const uint8_t *expected, int len)
 {
@@ -605,9 +582,7 @@ static void print_block(const char *label, const uint8_t *b, int n)
     printf("\n");
 }
 
-// ===========================================================================
-// Throughput sweep — GPU only
-// ===========================================================================
+// Throughput sweep
 
 static void throughput_sweep(const uint8_t *key,
                              const uint8_t  nonce[12],
@@ -806,9 +781,7 @@ static void throughput_sweep(const uint8_t *key,
     CUDA_CHECK(cudaEventDestroy(ev_e));
 }
 
-// ===========================================================================
-// Single-block latency (side data point)
-// ===========================================================================
+// Single-block latency
 
 static void measure_single_block_latency(const uint8_t *key,
                                          const uint8_t  nonce[12],
@@ -929,9 +902,7 @@ static void measure_single_block_latency(const uint8_t *key,
     cudaFree(d_plain); cudaFree(d_ecb_cipher); cudaFree(d_cbc_cipher); cudaFree(d_out);
 }
 
-// ===========================================================================
 // Key schedule cost
-// ===========================================================================
 
 static void measure_key_schedule_cost(const uint8_t *key)
 {
@@ -991,9 +962,7 @@ static void measure_key_schedule_cost(const uint8_t *key)
     cudaEventDestroy(stop);
 }
 
-// ===========================================================================
 // Main
-// ===========================================================================
 
 int main()
 {
