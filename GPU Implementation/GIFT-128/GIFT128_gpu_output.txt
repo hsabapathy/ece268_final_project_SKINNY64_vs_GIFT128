@@ -1,0 +1,123 @@
+-------GIFT-128 CUDA Implementation--------
+--------ECB, CTR and CBC Mode Tests--------
+
+--------ECB Mode (GPU)--------
+
+Original Plaintext    : cf16cfe8fd0f98aa0000000000000000
+ECB Ciphertext        : 9e57ac41af6979a3884db9b081c63a1e
+Recovered Plaintext   : cf16cfe8fd0f98aa0000000000000000
+
+The recovered plaintext matches the original plaintext ECB mode
+
+--------CTR Mode (GPU)--------
+
+Original Plaintext    : cf16cfe8fd0f98aa0000000000000000
+CTR Ciphertext        : 53b75bef157333b271a5493de3808880
+Recovered Plaintext   : cf16cfe8fd0f98aa0000000000000000
+
+The recovered plaintext matches the original plaintext CTR mode
+
+--------CBC Mode (GPU)--------
+
+Original Plaintext    : cf16cfe8fd0f98aa0000000000000000
+CBC Ciphertext        : 9e57ac41af6979a3884db9b081c63a1e
+Recovered Plaintext   : cf16cfe8fd0f98aa0000000000000000
+
+The recovered plaintext matches the original plaintext CBC mode
+
+--------ECB, CBC and CTR modes are validated--------
+
+--------GIFT-128 GPU Throughput vs Input Size--------
+  Median of 31 trials per measurement.
+
+  Data Size   Mode               Wall (ms)    Throughput
+  ----------  --------------  ------------    ----------
+      1 KB   GPU-ECB-E        0.1393 ms    0.0074 GB/s
+      1 KB   GPU-ECB-D        0.1044 ms    0.0098 GB/s
+      1 KB   GPU-CTR-E        0.1505 ms    0.0068 GB/s
+      1 KB   GPU-CTR-D        0.1505 ms    0.0068 GB/s
+      1 KB   GPU-CBC-E        8.4173 ms    0.0001 GB/s
+      1 KB   GPU-CBC-D        0.1044 ms    0.0098 GB/s
+
+      4 KB   GPU-ECB-E        0.2099 ms    0.0195 GB/s
+      4 KB   GPU-ECB-D        0.1516 ms    0.0270 GB/s
+      4 KB   GPU-CTR-E        0.2212 ms    0.0185 GB/s
+      4 KB   GPU-CTR-D        0.2048 ms    0.0200 GB/s
+      4 KB   GPU-CBC-E       26.8186 ms    0.0002 GB/s
+      4 KB   GPU-CBC-D        0.1391 ms    0.0295 GB/s
+
+     16 KB   GPU-ECB-E        0.1831 ms    0.0895 GB/s
+     16 KB   GPU-ECB-D        0.1341 ms    0.1221 GB/s
+     16 KB   GPU-CTR-E        0.1935 ms    0.0847 GB/s
+     16 KB   GPU-CTR-D        0.1935 ms    0.0847 GB/s
+     16 KB   GPU-CBC-E      107.2025 ms    0.0002 GB/s
+     16 KB   GPU-CBC-D        0.1423 ms    0.1151 GB/s
+
+     64 KB   GPU-ECB-E        0.1843 ms    0.3556 GB/s
+     64 KB   GPU-ECB-D        0.1393 ms    0.4706 GB/s
+     64 KB   GPU-CTR-E        0.1946 ms    0.3368 GB/s
+     64 KB   GPU-CTR-D        0.1946 ms    0.3368 GB/s
+     64 KB   GPU-CBC-E      431.0600 ms    0.0002 GB/s
+     64 KB   GPU-CBC-D        0.1444 ms    0.4539 GB/s
+
+    256 KB   GPU-ECB-E        0.5386 ms    0.4867 GB/s
+    256 KB   GPU-ECB-D        0.4588 ms    0.5714 GB/s
+    256 KB   GPU-CTR-E        0.5641 ms    0.4647 GB/s
+    256 KB   GPU-CTR-D        0.5634 ms    0.4653 GB/s
+    256 KB   GPU-CBC-E     1725.2075 ms    0.0002 GB/s
+    256 KB   GPU-CBC-D        0.4730 ms    0.5542 GB/s
+
+      1 MB   GPU-ECB-E        1.7888 ms    0.5862 GB/s
+      1 MB   GPU-ECB-D        1.6589 ms    0.6321 GB/s
+      1 MB   GPU-CTR-E        1.8586 ms    0.5642 GB/s
+      1 MB   GPU-CTR-D        1.8596 ms    0.5639 GB/s
+      1 MB   GPU-CBC-E     6902.1318 ms    0.0002 GB/s
+      1 MB   GPU-CBC-D        1.6742 ms    0.6263 GB/s
+
+      4 MB   GPU-ECB-E        6.8987 ms    0.6080 GB/s
+      4 MB   GPU-ECB-D        6.5382 ms    0.6415 GB/s
+      4 MB   GPU-CTR-E        7.1803 ms    0.5841 GB/s
+      4 MB   GPU-CTR-D        7.1833 ms    0.5839 GB/s
+      4 MB   GPU-CBC-E    27785.1621 ms    0.0002 GB/s
+      4 MB   GPU-CBC-D        6.5833 ms    0.6371 GB/s
+
+     16 MB   GPU-ECB-E       27.4145 ms    0.6120 GB/s
+     16 MB   GPU-ECB-D       26.0250 ms    0.6447 GB/s
+     16 MB   GPU-CTR-E       28.4293 ms    0.5901 GB/s
+     16 MB   GPU-CTR-D       28.4365 ms    0.5900 GB/s
+     16 MB   GPU-CBC-E    111140.5391 ms    0.0002 GB/s
+     16 MB   GPU-CBC-D       26.1324 ms    0.6420 GB/s
+
+     64 MB   GPU-ECB-E      109.3806 ms    0.6135 GB/s
+     64 MB   GPU-ECB-D      103.9677 ms    0.6455 GB/s
+     64 MB   GPU-CTR-E      113.4581 ms    0.5915 GB/s
+     64 MB   GPU-CTR-D      113.8760 ms    0.5893 GB/s
+     64 MB   GPU-CBC-E    444836.1875 ms    0.0002 GB/s
+     64 MB   GPU-CBC-D      104.3579 ms    0.6431 GB/s
+
+
+--------Single 64-Byte Block Latency (side data point)--------
+  Input size : 4 cipher blocks = 64 bytes
+  Trials     : 101
+
+  ECB encrypt latency (H2D+K+D2H)     :   131.55 us
+  ECB decrypt latency (H2D+K+D2H)     :    74.53 us
+  CTR encrypt latency (H2D+K+D2H)     :   131.94 us
+  CBC decrypt latency (H2D+K+D2H)     :    74.66 us
+
+--------Key Schedule Cost--------
+
+  Time (median of 101 trials)
+  CPU compute  (gift128_precompute_round_keys)     :   10.85 us
+  GPU upload   (cudaMemcpy H->D, PCIe)             :    7.17 us
+  Total key setup cost                             :   18.02 us
+
+  Space
+  Expanded round keys in GPU global memory         : 1280 bytes  (40 rounds x 32 nibble-bytes)
+
+--------GPU Device--------
+  Device        : NVIDIA GeForce GTX 1080 Ti
+  SMs           : 28
+  Clock         : 1582 MHz
+  Global memory : 11708 MB
+ashsingh@dsmlp-jupyter-ashsingh:~/gift/implementations/reference$ 
