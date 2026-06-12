@@ -247,16 +247,16 @@ __device__ static void gpu_DecryptBlock(const uint8_t in[16], uint8_t out[16]) {
     uint8_t s[16];
     for (int i = 0; i < 16; ++i) s[i] = in[i];
 
-    gpu_AddRoundKey(s, 0, DRK_GPU);                      // drk[0] = rk[Nr]
+    gpu_AddRoundKey(s, 0, DRK_GPU);                     
     for (int r = 1; r < aes128::Nr; ++r) {
         gpu_InvSubBytes(s);
         gpu_InvShiftRows(s);
-        gpu_InvMixColumns(s);                            // *** was missing ***
-        gpu_AddRoundKey(s, r, DRK_GPU);                  // drk[r] = InvMixColumns(rk[Nr-r])
+        gpu_InvMixColumns(s);                          
+        gpu_AddRoundKey(s, r, DRK_GPU);                  
     }
     gpu_InvSubBytes(s);
     gpu_InvShiftRows(s);
-    gpu_AddRoundKey(s, aes128::Nr, DRK_GPU);             // drk[Nr] = rk[0]
+    gpu_AddRoundKey(s, aes128::Nr, DRK_GPU);          
 
     for (int i = 0; i < 16; ++i) out[i] = s[i];
 }
