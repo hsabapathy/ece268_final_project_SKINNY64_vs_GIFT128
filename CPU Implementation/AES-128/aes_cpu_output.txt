@@ -115,7 +115,7 @@ The recovered plaintext matches the original plaintext CBC mode
      64 MB   CPU-CBC-D    32039.5333 ms    0.0021 GB/s
 
 
---------Single 128-Byte Block Latency (side data point)--------
+--------Single 128-Byte Block Latency --------
   Input size : 8 cipher blocks = 128 bytes
   Trials     : 101
   ECB encrypt latency                 :    37.53 us
