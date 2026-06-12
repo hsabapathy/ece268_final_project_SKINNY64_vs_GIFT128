@@ -99,7 +99,7 @@ The recovered plaintext matches the original plaintext CBC mode (GPU)
      64 MB   GPU-CBC-D       12.4744 ms    5.3797 GB/s
 
 
---------Single 128-Byte Block Latency (side data point)--------
+--------Single 128-Byte Block Latency --------
   Input size : 8 cipher blocks = 128 bytes
   Trials     : 101
   GPU CTR encrypt latency             :    27.01 us
