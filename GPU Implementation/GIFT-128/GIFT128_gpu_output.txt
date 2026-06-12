@@ -96,20 +96,20 @@ The recovered plaintext matches the original plaintext CBC mode
      64 MB   GPU-CBC-D      104.3579 ms    0.6431 GB/s
 
 
---------Single 64-Byte Block Latency (side data point)--------
+--------Single 64-Byte Block Latency --------
   Input size : 4 cipher blocks = 64 bytes
   Trials     : 101
 
-  ECB encrypt latency (H2D+K+D2H)     :   131.55 us
-  ECB decrypt latency (H2D+K+D2H)     :    74.53 us
-  CTR encrypt latency (H2D+K+D2H)     :   131.94 us
-  CBC decrypt latency (H2D+K+D2H)     :    74.66 us
+  ECB encrypt latency    :   131.55 us
+  ECB decrypt latency    :    74.53 us
+  CTR encrypt latency    :   131.94 us
+  CBC decrypt latency    :    74.66 us
 
 --------Key Schedule Cost--------
 
   Time (median of 101 trials)
   CPU compute  (gift128_precompute_round_keys)     :   10.85 us
-  GPU upload   (cudaMemcpy H->D, PCIe)             :    7.17 us
+  GPU upload                                       :    7.17 us
   Total key setup cost                             :   18.02 us
 
   Space
