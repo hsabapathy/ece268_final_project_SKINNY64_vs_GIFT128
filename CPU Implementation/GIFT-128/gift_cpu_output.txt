@@ -1,0 +1,118 @@
+
+ GIFT-128 Core Block Cipher Test
+Encryption->Decryption round-trip: PASS
+
+--------ECB Mode--------
+
+Original Plaintext   : cf16cfe8fd0f98aa0000000000000000
+ECB Ciphertext       : 9e57ac41af6979a3884db9b081c63a1e
+Recovered Plaintext  : cf16cfe8fd0f98aa0000000000000000
+
+ECB mode is validated : PASS
+
+--------CBC Mode--------
+
+Original Plaintext   : cf16cfe8fd0f98aa0000000000000000
+CBC Ciphertext       : 9e57ac41af6979a3884db9b081c63a1e
+Recovered Plaintext  : cf16cfe8fd0f98aa0000000000000000
+
+CBC mode is validated : PASS
+
+--------CTR Mode--------
+
+Original Plaintext   : cf16cfe8fd0f98aa0000000000000000
+CTR Ciphertext       : 53b75bef157333b271a5493de3808880
+Recovered Plaintext  : cf16cfe8fd0f98aa0000000000000000
+
+CTR mode is validated: PASS
+
+--------All tests have completed--------
+
+--------- Code Size ----------
+  GIFT_S         (4-bit Sbox, 16 entries)              :  16 bytes
+  GIFT_S_inv     (4-bit Sbox inverse, 16 entries)      :  16 bytes
+  GIFT_P         (bit permutation, 128 entries)        : 128 bytes
+  GIFT_P_inv     (inverse permutation, 128 entries)    : 128 bytes
+  GIFT_RC        (round constants, 62 entries)         :  62 bytes
+  Total table footprint                              : 350 bytes
+
+--------Performance Metrics (cycles/byte)--------
+  Median of 31 trials, Buffer = 256 blocks (4096 bytes)
+  CTR encrypt                              : 42112.39  cycles/byte
+  CBC encrypt (chained)                    : 44128.11  cycles/byte
+  ECB encrypt (independent blocks)         : 44380.80  cycles/byte
+
+  CBC overhead vs CTR                    : +2015.72 cycles/byte
+  ECB overhead vs CTR                    : +2268.40 cycles/byte
+
+--------GIFT-128 CPU Throughput vs Input Size--------
+  Median of 31 trials per measurement.
+
+  Data Size   Mode               Wall (ms)    Throughput
+  ----------  --------------  ------------    ----------
+      1 KB   CPU-CTR-E       16.9508 ms    0.0001 GB/s
+      1 KB   CPU-CTR-D       18.1091 ms    0.0001 GB/s
+      1 KB   CPU-CBC-E       16.8806 ms    0.0001 GB/s
+      1 KB   CPU-CBC-D       17.2901 ms    0.0001 GB/s
+      1 KB   CPU-ECB-E       18.8994 ms    0.0001 GB/s
+      1 KB   CPU-ECB-D       17.6484 ms    0.0001 GB/s
+
+      4 KB   CPU-CTR-E       82.2750 ms    0.0000 GB/s
+      4 KB   CPU-CTR-D       82.5362 ms    0.0000 GB/s
+      4 KB   CPU-CBC-E       82.2543 ms    0.0000 GB/s
+      4 KB   CPU-CBC-D       73.6877 ms    0.0001 GB/s
+      4 KB   CPU-ECB-E       68.5641 ms    0.0001 GB/s
+      4 KB   CPU-ECB-D       70.4070 ms    0.0001 GB/s
+
+     16 KB   CPU-CTR-E      281.1088 ms    0.0001 GB/s
+     16 KB   CPU-CTR-D      275.3030 ms    0.0001 GB/s
+     16 KB   CPU-CBC-E      273.9679 ms    0.0001 GB/s
+     16 KB   CPU-CBC-D      284.0688 ms    0.0001 GB/s
+     16 KB   CPU-ECB-E      276.2151 ms    0.0001 GB/s
+     16 KB   CPU-ECB-D      282.2077 ms    0.0001 GB/s
+
+     64 KB   CPU-CTR-E     1108.0426 ms    0.0001 GB/s
+     64 KB   CPU-CTR-D     1140.7039 ms    0.0001 GB/s
+     64 KB   CPU-CBC-E     1136.4830 ms    0.0001 GB/s
+     64 KB   CPU-CBC-D     1215.4959 ms    0.0001 GB/s
+     64 KB   CPU-ECB-E     1177.1346 ms    0.0001 GB/s
+     64 KB   CPU-ECB-D     1134.5146 ms    0.0001 GB/s
+
+    256 KB   CPU-CTR-E     4426.1838 ms    0.0001 GB/s
+    256 KB   CPU-CTR-D     4690.3419 ms    0.0001 GB/s
+    256 KB   CPU-CBC-E     5336.8768 ms    0.0000 GB/s
+    256 KB   CPU-CBC-D     5494.9483 ms    0.0000 GB/s
+    256 KB   CPU-ECB-E     4492.6721 ms    0.0001 GB/s
+    256 KB   CPU-ECB-D     4717.9000 ms    0.0001 GB/s
+
+      1 MB   CPU-CTR-E    18489.8893 ms    0.0001 GB/s
+      1 MB   CPU-CTR-D    17987.7140 ms    0.0001 GB/s
+      1 MB   CPU-CBC-E    18127.8329 ms    0.0001 GB/s
+      1 MB   CPU-CBC-D    18802.3915 ms    0.0001 GB/s
+      1 MB   CPU-ECB-E    18528.0756 ms    0.0001 GB/s
+      1 MB   CPU-ECB-D    18653.1839 ms    0.0001 GB/s
+
+      4 MB   CPU-CTR-E    72074.6397 ms    0.0001 GB/s
+      4 MB   CPU-CTR-D    73238.8145 ms    0.0001 GB/s
+      4 MB   CPU-CBC-E    71925.0419 ms    0.0001 GB/s
+      4 MB   CPU-CBC-D    85545.9021 ms    0.0000 GB/s
+      4 MB   CPU-ECB-E    75125.2149 ms    0.0001 GB/s
+      4 MB   CPU-ECB-D    70754.6892 ms    0.0001 GB/s
+	  
+	  --------Single 64-Byte Block Latency--------
+  Input size : 4 cipher blocks = 64 bytes
+  Trials     : 101
+
+  CTR encrypt latency                 :  1053.41 us
+  CBC decrypt latency                 :  1073.11 us
+  ECB decrypt latency                 :  1072.64 us
+
+--------Key Schedule Cost--------
+
+  Time (median of 101 trials)
+  CPU compute  (gift128_precompute_round_keys)     :  262.32 us
+  GPU upload   (cudaMemcpy H->D, PCIe)             :    0.00 us
+  Total key setup cost                             :  262.32 us
+
+  Space
+  Expanded round keys in RAM                       : 1280 bytes  (40 rounds x 32 nibble-bytes)
