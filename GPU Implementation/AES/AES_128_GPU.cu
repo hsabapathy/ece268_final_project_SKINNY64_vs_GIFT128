@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <time.h>
+#include <chrono>
 #include <cuda_runtime.h>
 
 #define CUDA_CHECK(call)                                                        \
@@ -567,57 +568,98 @@ static void measure_single_block_latency(const uint8_t nonce[16], const uint8_t 
     const int LAT_TRIALS = 101;
     const size_t sz = LAT_BLOCKS * 16;
 
-    uint8_t h_plain[sz], h_cipher[sz], h_recov[sz];
+    uint8_t h_plain[sz], h_ecb_cipher[sz], h_cbc_cipher[sz], h_out[sz];
     for (int i = 0; i < (int)sz; i++) h_plain[i] = (uint8_t)(i & 0xff);
 
-    uint8_t *d_plain, *d_cipher, *d_nonce, *d_iv;
-    CUDA_CHECK(cudaMalloc(&d_plain,  sz)); CUDA_CHECK(cudaMalloc(&d_cipher, sz));
-    CUDA_CHECK(cudaMalloc(&d_nonce,  16)); CUDA_CHECK(cudaMalloc(&d_iv,     16));
+    gpu_ecb_encrypt(h_plain, h_ecb_cipher, LAT_BLOCKS);
+    gpu_cbc_encrypt(h_plain, h_cbc_cipher, LAT_BLOCKS, iv);
+
+    uint8_t *d_plain, *d_cipher, *d_out, *d_nonce, *d_iv;
+    CUDA_CHECK(cudaMalloc(&d_plain,  sz));
+    CUDA_CHECK(cudaMalloc(&d_cipher, sz));
+    CUDA_CHECK(cudaMalloc(&d_out,    sz));
+    CUDA_CHECK(cudaMalloc(&d_nonce,  16));
+    CUDA_CHECK(cudaMalloc(&d_iv,     16));
     CUDA_CHECK(cudaMemcpy(d_nonce, nonce, 16, cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(d_iv,    iv,    16, cudaMemcpyHostToDevice));
 
     cudaEvent_t start, stop;
-    CUDA_CHECK(cudaEventCreate(&start)); CUDA_CHECK(cudaEventCreate(&stop));
+    CUDA_CHECK(cudaEventCreate(&start));
+    CUDA_CHECK(cudaEventCreate(&stop));
 
-    float gpu_ctr_s[LAT_TRIALS];
+    float ecb_enc_s[LAT_TRIALS];
+    float ecb_dec_s[LAT_TRIALS];
+    float ctr_enc_s[LAT_TRIALS];
+    float cbc_dec_s[LAT_TRIALS];
+
     for (int t = 0; t < LAT_TRIALS; t++) {
         CUDA_CHECK(cudaEventRecord(start));
         CUDA_CHECK(cudaMemcpy(d_plain, h_plain, sz, cudaMemcpyHostToDevice));
-        kernel_ctr_encrypt<<<1, LAT_BLOCKS>>>(d_plain, d_cipher, LAT_BLOCKS, d_nonce);
-        CUDA_CHECK(cudaMemcpy(h_cipher, d_cipher, sz, cudaMemcpyDeviceToHost));
+        kernel_ecb_encrypt<<<1, LAT_BLOCKS>>>(d_plain, d_out, LAT_BLOCKS);
+        CUDA_CHECK(cudaMemcpy(h_out, d_out, sz, cudaMemcpyDeviceToHost));
         CUDA_CHECK(cudaEventRecord(stop));
         CUDA_CHECK(cudaEventSynchronize(stop));
         float ms = 0; CUDA_CHECK(cudaEventElapsedTime(&ms, start, stop));
-        gpu_ctr_s[t] = ms * 1000.0f;
+        ecb_enc_s[t] = ms * 1000.0f;
     }
 
-    gpu_cbc_encrypt(h_plain, h_cipher, LAT_BLOCKS, iv);
-    float gpu_cbc_s[LAT_TRIALS];
     for (int t = 0; t < LAT_TRIALS; t++) {
         CUDA_CHECK(cudaEventRecord(start));
-        CUDA_CHECK(cudaMemcpy(d_cipher, h_cipher, sz, cudaMemcpyHostToDevice));
-        kernel_cbc_decrypt<<<1, LAT_BLOCKS>>>(d_cipher, d_plain, LAT_BLOCKS, d_iv);
-        CUDA_CHECK(cudaMemcpy(h_recov, d_plain, sz, cudaMemcpyDeviceToHost));
+        CUDA_CHECK(cudaMemcpy(d_cipher, h_ecb_cipher, sz, cudaMemcpyHostToDevice));
+        kernel_ecb_decrypt<<<1, LAT_BLOCKS>>>(d_cipher, d_out, LAT_BLOCKS);
+        CUDA_CHECK(cudaMemcpy(h_out, d_out, sz, cudaMemcpyDeviceToHost));
         CUDA_CHECK(cudaEventRecord(stop));
         CUDA_CHECK(cudaEventSynchronize(stop));
         float ms = 0; CUDA_CHECK(cudaEventElapsedTime(&ms, start, stop));
-        gpu_cbc_s[t] = ms * 1000.0f;
+        ecb_dec_s[t] = ms * 1000.0f;
     }
 
-    for (int i = 0; i < LAT_TRIALS-1; i++)
-        for (int j = i+1; j < LAT_TRIALS; j++) {
-            if (gpu_ctr_s[j] < gpu_ctr_s[i]) { float t=gpu_ctr_s[i]; gpu_ctr_s[i]=gpu_ctr_s[j]; gpu_ctr_s[j]=t; }
-            if (gpu_cbc_s[j] < gpu_cbc_s[i]) { float t=gpu_cbc_s[i]; gpu_cbc_s[i]=gpu_cbc_s[j]; gpu_cbc_s[j]=t; }
-        }
+    for (int t = 0; t < LAT_TRIALS; t++) {
+        CUDA_CHECK(cudaEventRecord(start));
+        CUDA_CHECK(cudaMemcpy(d_plain, h_plain, sz, cudaMemcpyHostToDevice));
+        kernel_ctr_encrypt<<<1, LAT_BLOCKS>>>(d_plain, d_out, LAT_BLOCKS, d_nonce);
+        CUDA_CHECK(cudaMemcpy(h_out, d_out, sz, cudaMemcpyDeviceToHost));
+        CUDA_CHECK(cudaEventRecord(stop));
+        CUDA_CHECK(cudaEventSynchronize(stop));
+        float ms = 0; CUDA_CHECK(cudaEventElapsedTime(&ms, start, stop));
+        ctr_enc_s[t] = ms * 1000.0f;
+    }
 
-    std::printf("\n--------Single 128-Byte Block Latency (side data point)--------\n");
+    for (int t = 0; t < LAT_TRIALS; t++) {
+        CUDA_CHECK(cudaEventRecord(start));
+        CUDA_CHECK(cudaMemcpy(d_cipher, h_cbc_cipher, sz, cudaMemcpyHostToDevice));
+        kernel_cbc_decrypt<<<1, LAT_BLOCKS>>>(d_cipher, d_out, LAT_BLOCKS, d_iv);
+        CUDA_CHECK(cudaMemcpy(h_out, d_out, sz, cudaMemcpyDeviceToHost));
+        CUDA_CHECK(cudaEventRecord(stop));
+        CUDA_CHECK(cudaEventSynchronize(stop));
+        float ms = 0; CUDA_CHECK(cudaEventElapsedTime(&ms, start, stop));
+        cbc_dec_s[t] = ms * 1000.0f;
+    }
+
+    for (int i = 0; i < LAT_TRIALS-1; i++) {
+        for (int j = i+1; j < LAT_TRIALS; j++) {
+            if (ecb_enc_s[j] < ecb_enc_s[i]) { float t=ecb_enc_s[i]; ecb_enc_s[i]=ecb_enc_s[j]; ecb_enc_s[j]=t; }
+            if (ecb_dec_s[j] < ecb_dec_s[i]) { float t=ecb_dec_s[i]; ecb_dec_s[i]=ecb_dec_s[j]; ecb_dec_s[j]=t; }
+            if (ctr_enc_s[j] < ctr_enc_s[i]) { float t=ctr_enc_s[i]; ctr_enc_s[i]=ctr_enc_s[j]; ctr_enc_s[j]=t; }
+            if (cbc_dec_s[j] < cbc_dec_s[i]) { float t=cbc_dec_s[i]; cbc_dec_s[i]=cbc_dec_s[j]; cbc_dec_s[j]=t; }
+        }
+    }
+
+    std::printf("\n--------Single 128-Byte Block Latency--------\n");
     std::printf("  Input size : %d cipher blocks = %d bytes\n", LAT_BLOCKS, LAT_BLOCKS * 16);
     std::printf("  Trials     : %d\n", LAT_TRIALS);
-    std::printf("  %-35s : %8.2f us\n", "GPU CTR encrypt latency", (double)gpu_ctr_s[LAT_TRIALS/2]);
-    std::printf("  %-35s : %8.2f us\n", "GPU CBC decrypt latency", (double)gpu_cbc_s[LAT_TRIALS/2]);
+    std::printf("  %-35s : %8.2f us\n", "ECB encrypt latency", (double)ecb_enc_s[LAT_TRIALS/2]);
+    std::printf("  %-35s : %8.2f us\n", "ECB decrypt latency", (double)ecb_dec_s[LAT_TRIALS/2]);
+    std::printf("  %-35s : %8.2f us\n", "CTR encrypt latency", (double)ctr_enc_s[LAT_TRIALS/2]);
+    std::printf("  %-35s : %8.2f us\n", "CBC decrypt latency", (double)cbc_dec_s[LAT_TRIALS/2]);
 
-    cudaEventDestroy(start); cudaEventDestroy(stop);
-    cudaFree(d_plain); cudaFree(d_cipher); cudaFree(d_nonce); cudaFree(d_iv);
+    CUDA_CHECK(cudaEventDestroy(start));
+    CUDA_CHECK(cudaEventDestroy(stop));
+    CUDA_CHECK(cudaFree(d_plain));
+    CUDA_CHECK(cudaFree(d_cipher));
+    CUDA_CHECK(cudaFree(d_out));
+    CUDA_CHECK(cudaFree(d_nonce));
+    CUDA_CHECK(cudaFree(d_iv));
 }
 
 static void measure_key_schedule_cost(const uint8_t key[aes128::KEY_SIZE])
@@ -625,11 +667,22 @@ static void measure_key_schedule_cost(const uint8_t key[aes128::KEY_SIZE])
     const int KS_TRIALS = 101;
     uint8_t roundKeys[aes128::EXPANDED_KEY_SIZE];
     uint8_t decryptKeys[aes128::EXPANDED_KEY_SIZE];
+
+    float cpu_samples[KS_TRIALS];
+    for (int t = 0; t < KS_TRIALS; t++) {
+        auto t0 = std::chrono::high_resolution_clock::now();
+        aes128::KeyExpansion(key, roundKeys);
+        aes128::BuildDecryptRoundKeys(roundKeys, decryptKeys);
+        auto t1 = std::chrono::high_resolution_clock::now();
+        cpu_samples[t] = std::chrono::duration<float, std::micro>(t1 - t0).count();
+    }
+
     aes128::KeyExpansion(key, roundKeys);
     aes128::BuildDecryptRoundKeys(roundKeys, decryptKeys);
 
     cudaEvent_t start, stop;
-    CUDA_CHECK(cudaEventCreate(&start)); CUDA_CHECK(cudaEventCreate(&stop));
+    CUDA_CHECK(cudaEventCreate(&start));
+    CUDA_CHECK(cudaEventCreate(&stop));
 
     float up_samples[KS_TRIALS];
     for (int t = 0; t < KS_TRIALS; t++) {
@@ -641,28 +694,36 @@ static void measure_key_schedule_cost(const uint8_t key[aes128::KEY_SIZE])
         float ms = 0; CUDA_CHECK(cudaEventElapsedTime(&ms, start, stop));
         up_samples[t] = ms * 1000.0f;
     }
-    for (int i = 0; i < KS_TRIALS-1; i++)
-        for (int j = i+1; j < KS_TRIALS; j++)
-            if (up_samples[j] < up_samples[i]) { float t=up_samples[i]; up_samples[i]=up_samples[j]; up_samples[j]=t; }
+
+    for (int i = 0; i < KS_TRIALS-1; i++) {
+        for (int j = i+1; j < KS_TRIALS; j++) {
+            if (cpu_samples[j] < cpu_samples[i]) { float t=cpu_samples[i]; cpu_samples[i]=cpu_samples[j]; cpu_samples[j]=t; }
+            if (up_samples[j]  < up_samples[i])  { float t=up_samples[i];  up_samples[i]=up_samples[j];   up_samples[j]=t;  }
+        }
+    }
+
+    double cpu_us   = (double)cpu_samples[KS_TRIALS/2];
+    double upload_us = (double)up_samples[KS_TRIALS/2];
 
     std::printf("\n--------Key Schedule Cost--------\n");
     std::printf("\n  Time (median of %d trials)\n", KS_TRIALS);
-    std::printf("  %-48s : %7.2f us\n", "GPU upload (RK_GPU + DRK_GPU)", (double)up_samples[KS_TRIALS/2]);
-    std::printf("\n  Space\n");
-    std::printf("  %-48s : %3d bytes  (%d rounds x 16 bytes)\n",
-                "RK_GPU  in constant memory",  aes128::EXPANDED_KEY_SIZE, aes128::Nr + 1);
-    std::printf("  %-48s : %3d bytes  (%d rounds x 16 bytes)\n",
-                "DRK_GPU in constant memory",  aes128::EXPANDED_KEY_SIZE, aes128::Nr + 1);
-    std::printf("  %-48s : %3d bytes  total\n",
-                "Combined constant memory",  2 * aes128::EXPANDED_KEY_SIZE);
+    std::printf("  %-48s : %7.2f us\n", "CPU compute", cpu_us);
+    std::printf("  %-48s : %7.2f us\n", "GPU upload", upload_us);
+    std::printf("  %-48s : %7.2f us\n", "Total key setup cost", cpu_us + upload_us);
 
-    cudaEventDestroy(start); cudaEventDestroy(stop);
+    std::printf("\n  Space\n");
+    std::printf("  %-48s : %3d bytes  (2 arrays x %d rounds x 16 bytes)\n",
+                "Expanded RK + DRK in GPU constant memory",
+                2 * aes128::EXPANDED_KEY_SIZE, aes128::Nr + 1);
+
+    CUDA_CHECK(cudaEventDestroy(start));
+    CUDA_CHECK(cudaEventDestroy(stop));
 }
 
 
 int main()
 {
-    std::printf("--------AES-128 GPU Implementation--------\n");
+    std::printf("--------AES-128 CUDA Implementation--------\n");
     std::printf("--------ECB, CTR and CBC Mode Tests--------\n\n");
 
     const uint8_t key[16] = {
@@ -684,7 +745,7 @@ int main()
     aes128::BuildDecryptRoundKeys(round_keys, decrypt_keys);
     CUDA_CHECK(cudaMemcpyToSymbol(RK_GPU,  round_keys,   sizeof(RK_GPU)));
     CUDA_CHECK(cudaMemcpyToSymbol(DRK_GPU, decrypt_keys, sizeof(DRK_GPU)));
-    std::printf("Key schedule generated and uploaded to GPU (RK_GPU + DRK_GPU)\n\n");
+    std::printf("Key schedule generated and uploaded to GPU\n\n");
 
     uint8_t ecb_cipher[16], ecb_recovered[16];
     uint8_t ctr_cipher[16], ctr_recovered[16];
@@ -697,7 +758,7 @@ int main()
     gpu_ecb_decrypt(ecb_cipher, ecb_recovered, 1);
     std::printf("Recovered Plaintext  : "); print_message(ecb_recovered, 16);
     std::printf("\n");
-    assert_equal("ECB mode (GPU)", ecb_recovered, plaintext, 16);
+    assert_equal("ECB mode", ecb_recovered, plaintext, 16);
 
     std::printf("\n--------CTR Mode (GPU)--------\n\n");
     std::printf("Original Plaintext   : "); print_message(plaintext, 16);
@@ -706,7 +767,7 @@ int main()
     gpu_ctr_decrypt(ctr_cipher, ctr_recovered, 1, nonce);
     std::printf("Recovered Plaintext  : "); print_message(ctr_recovered, 16);
     std::printf("\n");
-    assert_equal("CTR mode (GPU)", ctr_recovered, plaintext, 16);
+    assert_equal("CTR mode", ctr_recovered, plaintext, 16);
 
     std::printf("\n--------CBC Mode (GPU)--------\n\n");
     std::printf("Original Plaintext   : "); print_message(plaintext, 16);
@@ -715,9 +776,9 @@ int main()
     gpu_cbc_decrypt(cbc_cipher, cbc_recovered, 1, iv);
     std::printf("Recovered Plaintext  : "); print_message(cbc_recovered, 16);
     std::printf("\n");
-    assert_equal("CBC mode (GPU)", cbc_recovered, plaintext, 16);
+    assert_equal("CBC mode", cbc_recovered, plaintext, 16);
 
-    std::printf("\n--------ECB, CBC and CTR modes validated (GPU)--------\n");
+    std::printf("\n--------ECB, CBC and CTR modes are validated--------\n");
 
     throughput_sweep(nonce, iv);
     measure_single_block_latency(nonce, iv);
