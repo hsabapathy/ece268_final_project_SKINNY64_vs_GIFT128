@@ -11,8 +11,6 @@
 using namespace std;
 
 // Constants
-
-
 #define GIFT_ROUNDS  40
 #define BLOCK_BYTES  16
 #define KEY_BYTES    16
@@ -118,8 +116,6 @@ static void d_unpack_nibbles(const uint8_t bytes[16], uint8_t nibbles[32])
     }
 }
 
-// CPU key-schedule helpers
-
 static void gift128_precompute_round_keys(const uint8_t key[KEY_BYTES],
                                           uint8_t out_rkeys[GIFT_ROUNDS * 32])
 {
@@ -144,7 +140,7 @@ static void gift128_precompute_round_keys(const uint8_t key[KEY_BYTES],
     }
 }
 
-// GPU device functions: cipher core
+// GPU device functions
 
 __device__ __forceinline__
 static void d_gift128_enc_nibbles(uint8_t input[32], uint8_t key[32])
@@ -615,7 +611,7 @@ static void throughput_sweep(const uint8_t *key,
     CUDA_CHECK(cudaEventCreate(&ev_s));
     CUDA_CHECK(cudaEventCreate(&ev_e));
 
-    // Pre-compute round keys once — reused across all sizes
+    // Pre-compute round keys once
     uint8_t host_rkeys[GIFT_ROUNDS * 32];
     gift128_precompute_round_keys(key, host_rkeys);
 
@@ -624,19 +620,18 @@ static void throughput_sweep(const uint8_t *key,
         size_t num_blocks = (N + BLOCK_BYTES - 1) / BLOCK_BYTES;
         size_t padded     = num_blocks * BLOCK_BYTES;
 
-        // Pinned host buffers
         uint8_t *h_plain, *h_cipher;
         CUDA_CHECK(cudaMallocHost(&h_plain,  padded));
         CUDA_CHECK(cudaMallocHost(&h_cipher, padded));
         for (size_t i = 0; i < padded; i++) h_plain[i] = (uint8_t)(i & 0xFF);
 
-        // Build valid ECB and CBC ciphertexts for decrypt benchmarks
+        // Build valid ECB and CBC ciphertexts
         uint8_t *h_ecb_cipher;
         CUDA_CHECK(cudaMallocHost(&h_ecb_cipher, padded));
         gpu_ecb_encrypt(key, h_plain, h_ecb_cipher, padded);
         gpu_cbc_encrypt(key, iv, h_plain, h_cipher, padded);
 
-        // Device buffers
+
         uint8_t *d_key_g, *d_nonce_g, *d_rkeys_g, *d_iv_g;
         uint8_t *d_in, *d_cipher_g, *d_ecb_cipher_g, *d_out;
         CUDA_CHECK(cudaMalloc(&d_key_g,       KEY_BYTES));
@@ -659,7 +654,7 @@ static void throughput_sweep(const uint8_t *key,
         int tpb  = 256;
         int grid = (int)((num_blocks + tpb - 1) / tpb);
 
-        // ── GPU ECB encrypt ─────────────────────────────────────────────────
+        // GPU ECB encrypt
         float ecb_enc_samples[TRIALS];
         for (int t = 0; t < REPS; t++) {
             CUDA_CHECK(cudaEventRecord(ev_s));
@@ -670,7 +665,7 @@ static void throughput_sweep(const uint8_t *key,
             ecb_enc_samples[t] = ms;
         }
 
-        // ── GPU ECB decrypt ─────────────────────────────────────────────────
+        // GPU ECB decrypt 
         float ecb_dec_samples[TRIALS];
         for (int t = 0; t < REPS; t++) {
             CUDA_CHECK(cudaEventRecord(ev_s));
@@ -681,7 +676,7 @@ static void throughput_sweep(const uint8_t *key,
             ecb_dec_samples[t] = ms;
         }
 
-        // ── GPU CTR encrypt ─────────────────────────────────────────────────
+        //  GPU CTR encrypt
         float ctr_enc_samples[TRIALS];
         for (int t = 0; t < REPS; t++) {
             CUDA_CHECK(cudaEventRecord(ev_s));
@@ -692,7 +687,7 @@ static void throughput_sweep(const uint8_t *key,
             ctr_enc_samples[t] = ms;
         }
 
-        // ── GPU CTR decrypt ─────────────────────────────────────────────────
+        // GPU CTR decrypt
         float ctr_dec_samples[TRIALS];
         for (int t = 0; t < REPS; t++) {
             CUDA_CHECK(cudaEventRecord(ev_s));
@@ -703,7 +698,7 @@ static void throughput_sweep(const uint8_t *key,
             ctr_dec_samples[t] = ms;
         }
 
-        // ── GPU CBC encrypt ─────────────────────────────────────────────────
+        // GPU CBC encrypt 
         float cbc_enc_samples[TRIALS];
         for (int t = 0; t < REPS; t++) {
             CUDA_CHECK(cudaEventRecord(ev_s));
@@ -714,7 +709,7 @@ static void throughput_sweep(const uint8_t *key,
             cbc_enc_samples[t] = ms;
         }
 
-        // ── GPU CBC decrypt ─────────────────────────────────────────────────
+        //  GPU CBC decrypt 
         float cbc_dec_samples[TRIALS];
         for (int t = 0; t < REPS; t++) {
             CUDA_CHECK(cudaEventRecord(ev_s));
@@ -725,7 +720,7 @@ static void throughput_sweep(const uint8_t *key,
             cbc_dec_samples[t] = ms;
         }
 
-        // Sort all six arrays for median
+
         for (int i = 0; i < TRIALS-1; i++)
             for (int j = i+1; j < TRIALS; j++) {
                 #define SWAP(arr) if (arr[j] < arr[i]) { float _t = arr[i]; arr[i] = arr[j]; arr[j] = _t; }
@@ -827,7 +822,7 @@ static void measure_single_block_latency(const uint8_t *key,
     CUDA_CHECK(cudaEventCreate(&start));
     CUDA_CHECK(cudaEventCreate(&stop));
 
-    // ── ECB encrypt latency ──────────────────────────────────────────────────
+    //  ECB encrypt latency 
     float ecb_enc_samples[LAT_TRIALS];
     for (int t = 0; t < LAT_TRIALS; t++) {
         CUDA_CHECK(cudaEventRecord(start));
@@ -840,7 +835,7 @@ static void measure_single_block_latency(const uint8_t *key,
         ecb_enc_samples[t] = ms * 1000.0f;
     }
 
-    // ── ECB decrypt latency ──────────────────────────────────────────────────
+    // ECB decrypt latency 
     float ecb_dec_samples[LAT_TRIALS];
     for (int t = 0; t < LAT_TRIALS; t++) {
         CUDA_CHECK(cudaEventRecord(start));
@@ -853,7 +848,7 @@ static void measure_single_block_latency(const uint8_t *key,
         ecb_dec_samples[t] = ms * 1000.0f;
     }
 
-    // ── CTR encrypt latency ──────────────────────────────────────────────────
+    // CTR encrypt latency
     float ctr_samples[LAT_TRIALS];
     for (int t = 0; t < LAT_TRIALS; t++) {
         CUDA_CHECK(cudaEventRecord(start));
@@ -866,7 +861,7 @@ static void measure_single_block_latency(const uint8_t *key,
         ctr_samples[t] = ms * 1000.0f;
     }
 
-    // ── CBC decrypt latency ──────────────────────────────────────────────────
+    //  CBC decrypt latency
     float cbc_samples[LAT_TRIALS];
     for (int t = 0; t < LAT_TRIALS; t++) {
         CUDA_CHECK(cudaEventRecord(start));
@@ -889,13 +884,13 @@ static void measure_single_block_latency(const uint8_t *key,
             #undef SWAP
         }
 
-    printf("\n--------Single 64-Byte Block Latency (side data point)--------\n");
+    printf("\n--------Single 64-Byte Block Latency--------\n");
     printf("  Input size : %d cipher blocks = %d bytes\n", LAT_BLOCKS, LAT_BLOCKS * BLOCK_BYTES);
     printf("  Trials     : %d\n\n", LAT_TRIALS);
-    printf("  %-35s : %8.2f us\n", "ECB encrypt latency (H2D+K+D2H)", ecb_enc_samples[LAT_TRIALS/2]);
-    printf("  %-35s : %8.2f us\n", "ECB decrypt latency (H2D+K+D2H)", ecb_dec_samples[LAT_TRIALS/2]);
-    printf("  %-35s : %8.2f us\n", "CTR encrypt latency (H2D+K+D2H)", ctr_samples[LAT_TRIALS/2]);
-    printf("  %-35s : %8.2f us\n", "CBC decrypt latency (H2D+K+D2H)", cbc_samples[LAT_TRIALS/2]);
+    printf("  %-35s : %8.2f us\n", "ECB encrypt latency", ecb_enc_samples[LAT_TRIALS/2]);
+    printf("  %-35s : %8.2f us\n", "ECB decrypt latency ", ecb_dec_samples[LAT_TRIALS/2]);
+    printf("  %-35s : %8.2f us\n", "CTR encrypt latency", ctr_samples[LAT_TRIALS/2]);
+    printf("  %-35s : %8.2f us\n", "CBC decrypt latency", cbc_samples[LAT_TRIALS/2]);
 
     cudaEventDestroy(start); cudaEventDestroy(stop);
     cudaFree(d_key);  cudaFree(d_nonce); cudaFree(d_rkeys); cudaFree(d_iv);
@@ -951,7 +946,7 @@ static void measure_key_schedule_cost(const uint8_t *key)
     printf("\n--------Key Schedule Cost--------\n");
     printf("\n  Time (median of %d trials)\n", KS_TRIALS);
     printf("  %-48s : %7.2f us\n", "CPU compute  (gift128_precompute_round_keys)",  ks_med);
-    printf("  %-48s : %7.2f us\n", "GPU upload   (cudaMemcpy H->D, PCIe)",           up_med);
+    printf("  %-48s : %7.2f us\n", "GPU upload                    ",           up_med);
     printf("  %-48s : %7.2f us\n", "Total key setup cost",                            ks_med + up_med);
     printf("\n  Space\n");
     printf("  %-48s : %3zu bytes  (%d rounds x 32 nibble-bytes)\n",
@@ -982,7 +977,7 @@ int main()
     uint8_t nonce[12]        = {0};
     uint8_t iv[BLOCK_BYTES]  = {0};
 
-    // ── ECB mode test ────────────────────────────────────────────────────────
+    // ECB mode test
     printf("--------ECB Mode (GPU)--------\n\n");
 
     uint8_t ecb_cipher[BLOCK_BYTES], ecb_recovered[BLOCK_BYTES];
@@ -995,7 +990,7 @@ int main()
     printf("\n");
     assert_equal("ECB mode", ecb_recovered, plain, BLOCK_BYTES);
 
-    // ── CTR mode test ────────────────────────────────────────────────────────
+    //  CTR mode test
     printf("\n--------CTR Mode (GPU)--------\n\n");
 
     uint8_t ctr_cipher[BLOCK_BYTES], ctr_recovered[BLOCK_BYTES];
@@ -1008,7 +1003,7 @@ int main()
     printf("\n");
     assert_equal("CTR mode", ctr_recovered, plain, BLOCK_BYTES);
 
-    // ── CBC mode test ────────────────────────────────────────────────────────
+    //  CBC mode test 
     printf("\n--------CBC Mode (GPU)--------\n\n");
 
     uint8_t cbc_cipher[BLOCK_BYTES], cbc_recovered[BLOCK_BYTES];
@@ -1023,16 +1018,16 @@ int main()
 
     printf("\n--------ECB, CBC and CTR modes are validated--------\n");
 
-    // ── Throughput sweep ─────────────────────────────────────────────────────
+    //  Throughput sweep 
     throughput_sweep(key, nonce, iv);
 
-    // ── Single block latency ─────────────────────────────────────────────────
+    // Single block latency
     measure_single_block_latency(key, nonce, iv);
 
-    // ── Key schedule cost ────────────────────────────────────────────────────
+    // Key schedule cost 
     measure_key_schedule_cost(key);
 
-    // ── Device info ──────────────────────────────────────────────────────────
+    // Device info 
     cudaDeviceProp prop;
     CUDA_CHECK(cudaGetDeviceProperties(&prop, 0));
     printf("\n--------GPU Device--------\n");
